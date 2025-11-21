@@ -1,5 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'package:is_takip/env.dart';
+
 /// API Yapılandırma Sınıfı
 ///
 /// Bu sınıf, backend API ile iletişim için gerekli yapılandırma değerlerini içerir.
@@ -80,6 +82,10 @@ class ApiConfig {
     // Önce environment variable kontrol et
     const envKey = String.fromEnvironment('API_KEY', defaultValue: '');
     if (envKey.isNotEmpty) return envKey;
+
+    // Envied ile build-time'da gömülen değer
+    final generatedKey = Env.apiKey;
+    if (generatedKey.isNotEmpty) return generatedKey;
 
     // Sonra .env dosyasından oku
     final dotenvKey = dotenv.env['API_KEY'];

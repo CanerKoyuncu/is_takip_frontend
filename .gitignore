@@ -1,0 +1,117 @@
+# Build files
+/build
+/dist
+*.apk
+*.aab
+*.aar
+*.jar
+*.class
+
+# Android
+.gradle
+.idea
+*.iml
+local.properties
+*.jks
+*.keystore
+*.pem
+gradlew
+gradlew.bat
+gradle/
+captures/
+.externalNativeBuild
+.cxx/
+
+# IDE & Editors
+.vscode
+.idea
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.vim/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+htmlcov/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+.npm
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+logs/
+lerna-debug.log*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Uploads & temp files
+/uploads/
+/tmp/
+*.tmp
+*.bak
+*.swp
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Git
+.git/
+.gitkeep
+.gitmodules
+
+# Compiled files
+*.o
+*.a
+*.lib
+*.exe
+*.dll
+
+# Secrets & Keys
+*.pem
+*.key
+*.pub
+secrets/
+.ssh/
+
+# IDE specific
+.gradle/
+.idea/
+*.workspace.json
+.vscode/settings.json

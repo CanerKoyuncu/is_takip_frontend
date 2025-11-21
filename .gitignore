@@ -1,5 +1,4 @@
 # Build files
-/build
 /dist
 *.apk
 *.aab
@@ -50,7 +49,8 @@ htmlcov/
 .pytest_cache/
 *.egg-info/
 dist/
-build/
+
+
 
 # Node
 node_modules/

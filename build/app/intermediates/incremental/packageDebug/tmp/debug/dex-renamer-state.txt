@@ -1,0 +1,25 @@
+#Thu Nov 13 11:54:50 TRT 2025
+base.0=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeExtDexDebug/classes.dex
+base.1=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeLibDexDebug/1/classes.dex
+base.2=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeLibDexDebug/15/classes.dex
+base.3=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeLibDexDebug/4/classes.dex
+base.4=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeLibDexDebug/5/classes.dex
+base.5=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
+base.6=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeProjectDexDebug/1/classes.dex
+base.7=/home/caner/projects/yilbasi/is_takip/build/app/intermediates/dex/debug/mergeProjectDexDebug/14/classes.dex
+path.0=classes.dex
+path.1=1/classes.dex
+path.2=15/classes.dex
+path.3=4/classes.dex
+path.4=5/classes.dex
+path.5=0/classes.dex
+path.6=1/classes.dex
+path.7=14/classes.dex
+renamed.0=classes.dex
+renamed.1=classes2.dex
+renamed.2=classes3.dex
+renamed.3=classes4.dex
+renamed.4=classes5.dex
+renamed.5=classes6.dex
+renamed.6=classes7.dex
+renamed.7=classes8.dex

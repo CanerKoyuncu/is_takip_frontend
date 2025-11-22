@@ -109,6 +109,24 @@ class VehiclePartMapper {
   }
 
   static JobOperationType? damageActionToOperationType(String action) {
+    // Yeni format: "category:operationType" (örn: "kaporta:onarim", "boya:yeniBoya")
+    if (action.contains(':')) {
+      final parts = action.split(':');
+      if (parts.length == 2) {
+        final operationTypeName = parts[1];
+
+        // JobOperationType enum'ında bu isimle eşleşen değeri bul
+        try {
+          return JobOperationType.values.firstWhere(
+            (type) => type.name == operationTypeName,
+          );
+        } catch (e) {
+          // Eşleşme bulunamadı, eski format'a dön
+        }
+      }
+    }
+
+    // Eski format (backward compatibility)
     switch (action) {
       case VehicleDamageActions.boya:
         return JobOperationType.yeniBoya; // BOYA kategorisi
@@ -124,21 +142,8 @@ class VehiclePartMapper {
   }
 
   static String? operationTypeToDamageAction(JobOperationType operationType) {
-    switch (operationType) {
-      // BOYA kategorisi
-      case JobOperationType.yeniBoya:
-      case JobOperationType.onarimBoya:
-      case JobOperationType.lokalBoya:
-      case JobOperationType.pasta:
-        return VehicleDamageActions.boya;
-      // Kaporta kategorisi
-      case JobOperationType.onarim:
-      case JobOperationType.sokTak:
-      case JobOperationType.doseme:
-      case JobOperationType.parcaKurtarma:
-      case JobOperationType.boyasizOnarim:
-        return VehicleDamageActions.kaporta;
-    }
+    // Yeni format: "category:operationType"
+    return '${operationType.category.name}:${operationType.name}';
   }
 
   static List<JobTaskDraft> selectionsToTaskDrafts(

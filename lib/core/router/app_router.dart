@@ -125,11 +125,19 @@ class AppRouter {
         builder: (context, state) => const DashboardScreen(),
         // Dashboard altındaki alt sayfalar (nested routes)
         routes: [
-          // Araç parçaları seçim sayfası
+          // Araç parçaları seçim sayfası - sadece yetkili kullanıcılar için
           GoRoute(
             path: '/vehicle-parts',
             name: 'vehicle-parts',
-            builder: (context, state) => const VehiclePartsScreen(),
+            builder: (context, state) {
+              // İş emri oluşturma yetkisi kontrolü
+              if (!_authProvider.canCreateJob) {
+                return const Scaffold(
+                  body: Center(child: Text('Bu sayfaya erişim yetkiniz yok.')),
+                );
+              }
+              return const VehiclePartsScreen();
+            },
           ),
           // İş emri oluşturma sayfası - Supervisor, manager ve admin'ler erişebilir
           // Extra data ile seçilen parçalar ve işlemler aktarılır

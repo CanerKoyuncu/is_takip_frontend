@@ -44,14 +44,17 @@ class DashboardScreen extends StatelessWidget {
                 color: scheme.primaryContainer,
                 onTap: () => context.go('/dashboard/job-orders'),
               ),
-              const SizedBox(height: 12),
-              _DashboardCard(
-                icon: Icons.map_outlined,
-                title: 'Yeni İş Emri Oluştur',
-                description: 'Araç hasar haritasından yeni iş emri oluşturun',
-                color: scheme.secondaryContainer,
-                onTap: () => context.go('/dashboard/vehicle-parts'),
-              ),
+              // Yeni iş emri oluşturma - sadece yetkili kullanıcılar için
+              if (context.watch<AuthProvider>().canCreateJob) ...[
+                const SizedBox(height: 12),
+                _DashboardCard(
+                  icon: Icons.map_outlined,
+                  title: 'Yeni İş Emri Oluştur',
+                  description: 'Araç hasar haritasından yeni iş emri oluşturun',
+                  color: scheme.secondaryContainer,
+                  onTap: () => context.go('/dashboard/vehicle-parts'),
+                ),
+              ],
               const SizedBox(height: 24),
 
               // Görev Yönetimi Bölümü

@@ -41,14 +41,8 @@ class TokenStorageService {
   static Future<TokenStorageService> getInstance() async {
     _instance ??= TokenStorageService._();
 
-    // Web platformunda shared_preferences'ı kullanma
-    if (kIsWeb) {
-      if (kDebugMode) {
-        print('🌐 Web platform detected - using in-memory storage');
-      }
-      _prefs = null;
-      return _instance!;
-    }
+    // Web platformunda da shared_preferences kullan (localStorage kullanır)
+    // Sadece başlatma işlemini atlamayalım
 
     // Eğer zaten başlatılıyorsa, mevcut completer'ı bekle
     if (_isInitializing && _initCompleter != null) {

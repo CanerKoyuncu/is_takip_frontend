@@ -33,40 +33,65 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  IconData _getPhotoTypeIcon(TaskPhotoType type) {
+    switch (type) {
+      case TaskPhotoType.damage:
+        return Icons.broken_image_outlined;
+      case TaskPhotoType.completion:
+        return Icons.check_circle_outline;
+      case TaskPhotoType.other:
+        return Icons.photo_outlined;
+    }
+  }
+
+  Future<void> _pickImage({ImageSource? source}) async {
     if (_selectedTaskId == null) {
       ErrorSnackbar.showError(context, 'Lütfen önce bir görev seçin');
       return;
     }
 
-    // Show source selection dialog
-    final source = await showDialog<ImageSource?>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Fotoğraf Kaynağı'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Kamera'),
-              onTap: () => Navigator.of(context).pop(ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Galeri'),
-              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-            ),
-          ],
+    // Eğer source belirtilmemişse dialog göster
+    ImageSource? selectedSource = source;
+    if (selectedSource == null) {
+      selectedSource = await showDialog<ImageSource?>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Fotoğraf Kaynağı Seç'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, size: 28),
+                title: const Text('Kamera'),
+                subtitle: const Text('Yeni fotoğraf çek'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.photo_library, size: 28),
+                title: const Text('Galeri'),
+                subtitle: const Text('Galeriden seç'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
-    if (source == null || !mounted) return;
+    if (selectedSource == null || !mounted) return;
 
     try {
       final XFile? image = await _imagePicker.pickImage(
-        source: source,
+        source: selectedSource,
         imageQuality: 85,
         maxWidth: 1920,
         maxHeight: 1920,
@@ -241,7 +266,7 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-               
+
                       Text(
                         job.vehicle.plate,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -341,42 +366,50 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 12),
-                        ToggleButtons(
-                          isSelected: [
-                            _selectedPhotoType == TaskPhotoType.damage,
-                            _selectedPhotoType == TaskPhotoType.completion,
-                          ],
-                          onPressed: (index) {
-                            setState(() {
-                              _selectedPhotoType = index == 0
-                                  ? TaskPhotoType.damage
-                                  : TaskPhotoType.completion;
-                            });
-                          },
-                          children: const [
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(
+                        Text(
+                          'Fotoğraf Tipi',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: TaskPhotoType.values.map((type) {
+                            final isSelected = _selectedPhotoType == type;
+                            return FilterChip(
+                              selected: isSelected,
+                              label: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.broken_image, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Hasar'),
+                                  Icon(
+                                    _getPhotoTypeIcon(type),
+                                    size: 18,
+                                    color: isSelected
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimaryContainer
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(type.label),
                                 ],
                               ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.check_circle, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Tamamlanma'),
-                                ],
-                              ),
-                            ),
-                          ],
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _selectedPhotoType = type;
+                                  });
+                                }
+                              },
+                              selectedColor: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              checkmarkColor: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                            );
+                          }).toList(),
                         ),
                         const SizedBox(height: 12),
                         // Aşama seçimi
@@ -384,7 +417,8 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
                           value: _selectedStage,
                           decoration: const InputDecoration(
                             labelText: 'Aşama (Opsiyonel)',
-                            hintText: 'Fotoğrafın hangi aşamada yüklendiğini seçin',
+                            hintText:
+                                'Fotoğrafın hangi aşamada yüklendiğini seçin',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.timeline),
                           ),
@@ -419,11 +453,48 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
                             });
                           },
                         ),
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: _pickImage,
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text('Fotoğraf Çek'),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _pickImage(),
+                                icon: const Icon(Icons.camera_alt),
+                                label: const Text('Kamera'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () =>
+                                    _pickImage(source: ImageSource.gallery),
+                                icon: const Icon(Icons.photo_library),
+                                label: const Text('Galeri'),
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Seçilen tip: ${_selectedPhotoType.label}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ],
                     ),
@@ -509,4 +580,3 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
     );
   }
 }
-

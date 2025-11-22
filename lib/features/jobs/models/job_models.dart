@@ -362,7 +362,7 @@ extension TaskPhotoTypeX on TaskPhotoType {
       case TaskPhotoType.completion:
         return 'Tamamlandı Fotoğrafı';
       case TaskPhotoType.other:
-        return 'Diğer Fotoğraf';
+        return 'Uygulama Fotoğrafı';
     }
   }
 }

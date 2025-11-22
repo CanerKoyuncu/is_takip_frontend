@@ -52,9 +52,9 @@ class TaskCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: task.operationType == JobOperationType.paint
+                    color: task.operationType.category == TaskCategory.boya
                         ? scheme.primaryContainer
-                        : task.operationType == JobOperationType.bodyRepair
+                        : task.operationType.category == TaskCategory.kaporta
                         ? scheme.tertiaryContainer
                         : scheme.secondaryContainer,
                     borderRadius: BorderRadius.circular(10),

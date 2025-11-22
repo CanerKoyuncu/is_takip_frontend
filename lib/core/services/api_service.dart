@@ -14,6 +14,8 @@
 /// - Cookie yönetimi (HttpOnly cookie desteği)
 library;
 
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' as io show HttpClient;
@@ -215,6 +217,7 @@ class ApiService {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
+    _ensureApiKeyConfigured();
     try {
       return await _dio.get<T>(
         path,
@@ -244,6 +247,7 @@ class ApiService {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
+    _ensureApiKeyConfigured();
     try {
       return await _dio.post<T>(
         path,
@@ -273,6 +277,7 @@ class ApiService {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
+    _ensureApiKeyConfigured();
     try {
       return await _dio.put<T>(
         path,
@@ -302,6 +307,7 @@ class ApiService {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
+    _ensureApiKeyConfigured();
     try {
       return await _dio.patch<T>(
         path,
@@ -331,12 +337,46 @@ class ApiService {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
+    _ensureApiKeyConfigured();
     try {
       return await _dio.delete<T>(
         path,
         data: data,
         queryParameters: queryParameters,
         options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Binary içerik döndürür (örneğin görsel veya PDF)
+  ///
+  /// pathOrUrl parametresi hem relative path hem de tam URL olabilir.
+  ///
+  /// Parametreler:
+  /// - pathOrUrl: İstek yapılacak endpoint veya tam URL
+  /// - queryParameters: URL query parametreleri (relative path için)
+  /// - options: Ek Dio seçenekleri (Accept header vb.)
+  Future<Response<Uint8List>> getBytes(
+    String pathOrUrl, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    _ensureApiKeyConfigured();
+    final requestOptions = options ?? Options();
+    requestOptions.responseType = ResponseType.bytes;
+
+    try {
+      if (_isAbsoluteUrl(pathOrUrl)) {
+        final uri = Uri.parse(pathOrUrl);
+        return await _dio.getUri<Uint8List>(uri, options: requestOptions);
+      }
+
+      return await _dio.get<Uint8List>(
+        pathOrUrl,
+        queryParameters: queryParameters,
+        options: requestOptions,
       );
     } on DioException catch (e) {
       throw _handleError(e);
@@ -388,6 +428,20 @@ class ApiService {
   /// API key'i header'dan kaldırır.
   void clearApiKey() {
     _dio.options.headers.remove('X-API-Key');
+  }
+
+  void _ensureApiKeyConfigured() {
+    final headerValue = _dio.options.headers['X-API-Key'];
+    final headerKey = headerValue is String && headerValue.trim().isNotEmpty;
+    final storedKey = _apiKey?.trim();
+    final hasApiKey = (storedKey != null && storedKey.isNotEmpty) || headerKey;
+
+    if (!hasApiKey) {
+      throw Exception(
+        'API anahtarı bulunamadı. Lütfen .env dosyanızda API_KEY değerini '
+        'ayarlayın veya çalıştırma komutuna --dart-define=API_KEY=... ekleyin.',
+      );
+    }
   }
 
   /// DioException'ı Türkçe Exception'a dönüştürür
@@ -540,5 +594,9 @@ class ApiService {
     }
 
     return dio;
+  }
+
+  static bool _isAbsoluteUrl(String value) {
+    return value.startsWith('http://') || value.startsWith('https://');
   }
 }

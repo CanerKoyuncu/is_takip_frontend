@@ -25,8 +25,8 @@ const RESOURCES = {"canvaskit/chromium/canvaskit.js": "5e27aae346eee469027c80af0
 "index.html": "8135b56605e64e4961ad9707ed5a26d9",
 "/": "8135b56605e64e4961ad9707ed5a26d9",
 "version.json": "48fc7f6b3cc8cd3b854d016497401fb6",
-"main.dart.js": "3c73dde7022491d04aecd8e424c18ffa",
-"assets/NOTICES": "b2389e204e98bfdb20b2ea92e2fb6322",
+"main.dart.js": "6542561530ac51bc793e0510c579d1a4",
+"assets/NOTICES": "b7252296f3aeb341015d527ef128609f",
 "assets/FontManifest.json": "dc3d03800ccca4601324923c0b1d6d57",
 "assets/assets/images/vehicle_top.png": "00c42a26184ef82ab1d315e3b90c49ce",
 "assets/assets/car-cutout-grouped.svg": "552d1985be5c9209d775e9049222ad54",
@@ -35,12 +35,12 @@ const RESOURCES = {"canvaskit/chromium/canvaskit.js": "5e27aae346eee469027c80af0
 "assets/assets/car-cutout.svg": "e760fd093c0a133694622f45a655159e",
 "assets/assets/logo.png": "30d932053f37ed72236842e75ad194ab",
 "assets/AssetManifest.bin.json": "0438bb0c86c9d5c18b0c52526ff18d33",
-"assets/fonts/MaterialIcons-Regular.otf": "5a87c5c3db0aa64a75a8d166588e8b1d",
+"assets/fonts/MaterialIcons-Regular.otf": "e09640871beaa985f04b66def1aa729a",
 "assets/AssetManifest.json": "22d85b41d719084416adedfba6043d47",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/AssetManifest.bin": "b52bea2f42068f72b835b9260379490c",
 "assets/packages/cupertino_icons/assets/CupertinoIcons.ttf": "33b7d9392238c04c131b6ce224e13711",
-"flutter_bootstrap.js": "971c2cd42bd9e5bfacd8c373735079a9"};
+"flutter_bootstrap.js": "58f66f3ddcc8465b735bc4f4a6929275"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",

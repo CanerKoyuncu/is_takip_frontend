@@ -15,13 +15,13 @@
 /// Bu servis frontend'de PDF oluşturur.
 
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 
 // Web desteği - conditional import
@@ -35,7 +35,8 @@ import '../models/vehicle_area.dart';
 import '../utils/vehicle_part_mapper.dart';
 import '../utils/svg_vehicle_part_loader.dart';
 import '../utils/damage_map_image_generator.dart';
-import '../../../core/config/api_config.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/api_service_factory.dart';
 import '../services/photo_service.dart';
 import 'jobs_api_service.dart';
 import 'pdf/pdf_styles.dart';
@@ -58,6 +59,7 @@ class JobOrderPdfService {
 
   // Logo image provider - PDF'e eklenecek logo
   pw.ImageProvider? _logoImage;
+  final ApiService _apiService = ApiServiceFactory.getApiService();
 
   /// Logo görselini assets'den yükler (private metod)
   ///
@@ -181,43 +183,11 @@ class JobOrderPdfService {
 
       debugPrint('📷 Fotoğraf yükleniyor: $photoUrl');
 
-      // API key header'ı ile Dio kullanarak görseli yükle
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiConfig.baseUrl,
-          headers: {'X-API-Key': ApiConfig.apiKey, 'Accept': 'image/*'},
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 30),
-        ),
-      );
-
-      // Tam URL'den path'i çıkar
-      final uri = Uri.parse(photoUrl);
-      final baseUri = Uri.parse(ApiConfig.baseUrl);
-
-      // Path'i çıkar (base URL varsa kaldır)
-      String path = uri.path;
-      if (path.startsWith(baseUri.path)) {
-        path = path.substring(baseUri.path.length);
-      }
-      // Path'in / ile başladığından emin ol
-      if (!path.startsWith('/')) {
-        path = '/$path';
-      }
-      // Query string varsa ekle
-      if (uri.query.isNotEmpty) {
-        path = '$path?${uri.query}';
-      }
-
-      debugPrint('📷 Loading image: path=$path');
-
-      // Fotoğrafı bytes olarak al
-      final response = await dio.get<Uint8List>(
-        path,
+      final response = await _apiService.getBytes(
+        photoUrl,
         options: Options(
-          responseType: ResponseType.bytes, // Bytes olarak al
-          validateStatus: (status) =>
-              status! < 500, // 500'den küçük status kodlarını kabul et
+          headers: {'Accept': 'image/*'},
+          validateStatus: (status) => status != null && status < 500,
         ),
       );
 

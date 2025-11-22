@@ -287,11 +287,11 @@ class _CreateJobOrderScreenState extends State<CreateJobOrderScreen> {
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color:
-                                          draft.operationType ==
-                                              JobOperationType.paint
+                                          draft.operationType.category ==
+                                              TaskCategory.boya
                                           ? scheme.primaryContainer
-                                          : draft.operationType ==
-                                                JobOperationType.bodyRepair
+                                          : draft.operationType.category ==
+                                                TaskCategory.kaporta
                                           ? scheme.tertiaryContainer
                                           : scheme.secondaryContainer,
                                       borderRadius: BorderRadius.circular(6),

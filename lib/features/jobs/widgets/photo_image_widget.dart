@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/config/api_config.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/api_service_factory.dart';
 import '../models/job_models.dart';
 import '../services/photo_service.dart';
 
@@ -39,10 +40,12 @@ class _PhotoImageWidgetState extends State<PhotoImageWidget> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
   String? _error;
+  late final ApiService _apiService;
 
   @override
   void initState() {
     super.initState();
+    _apiService = ApiServiceFactory.getApiService();
     _loadImage();
   }
 
@@ -83,43 +86,11 @@ class _PhotoImageWidgetState extends State<PhotoImageWidget> {
     }
 
     try {
-      // Use Dio to load image with API key header
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiConfig.baseUrl,
-          headers: {'X-API-Key': ApiConfig.apiKey, 'Accept': 'image/*'},
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 30),
-        ),
-      );
-
-      // Extract path from full URL
-      final uri = Uri.parse(photoUrl);
-      final baseUri = Uri.parse(ApiConfig.baseUrl);
-
-      // Extract path (remove base URL if present)
-      String path = uri.path;
-      if (path.startsWith(baseUri.path)) {
-        path = path.substring(baseUri.path.length);
-      }
-      // Ensure path starts with /
-      if (!path.startsWith('/')) {
-        path = '/$path';
-      }
-      // Add query string if present
-      if (uri.query.isNotEmpty) {
-        path = '$path?${uri.query}';
-      }
-
-      debugPrint(
-        '📸 Loading image: fullUrl=$photoUrl, baseUrl=${ApiConfig.baseUrl}, path=$path',
-      );
-
-      final response = await dio.get<Uint8List>(
-        path,
+      final response = await _apiService.getBytes(
+        photoUrl,
         options: Options(
-          responseType: ResponseType.bytes,
-          validateStatus: (status) => status! < 500,
+          headers: {'Accept': 'image/*'},
+          validateStatus: (status) => status != null && status < 500,
         ),
       );
 

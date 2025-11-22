@@ -154,14 +154,14 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
         }
 
         // Add operation-specific notes
-        if (draft.operationType == JobOperationType.paint &&
+        if (draft.operationType.category == TaskCategory.boya &&
             _paintNotesController.text.trim().isNotEmpty) {
           final paintNote =
               'Boya Notları: ${_paintNotesController.text.trim()}';
           combinedNote = combinedNote != null && combinedNote.isNotEmpty
               ? '$combinedNote\n\n$paintNote'
               : paintNote;
-        } else if (draft.operationType == JobOperationType.bodyRepair &&
+        } else if (draft.operationType.category == TaskCategory.kaporta &&
             _bodyRepairNotesController.text.trim().isNotEmpty) {
           final bodyNote =
               'Kaporta Notları: ${_bodyRepairNotesController.text.trim()}';
@@ -426,12 +426,13 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
                                             color:
-                                                draft.operationType ==
-                                                    JobOperationType.paint
+                                                draft.operationType.category ==
+                                                    TaskCategory.boya
                                                 ? scheme.primaryContainer
-                                                : draft.operationType ==
-                                                      JobOperationType
-                                                          .bodyRepair
+                                                : draft
+                                                          .operationType
+                                                          .category ==
+                                                      TaskCategory.kaporta
                                                 ? scheme.tertiaryContainer
                                                 : scheme.secondaryContainer,
                                             borderRadius: BorderRadius.circular(

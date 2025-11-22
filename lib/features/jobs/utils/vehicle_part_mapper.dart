@@ -111,11 +111,11 @@ class VehiclePartMapper {
   static JobOperationType? damageActionToOperationType(String action) {
     switch (action) {
       case VehicleDamageActions.boya:
-        return JobOperationType.paint;
+        return JobOperationType.yeniBoya; // BOYA kategorisi
       case VehicleDamageActions.kaporta:
-        return JobOperationType.bodyRepair;
+        return JobOperationType.onarim; // Kaporta kategorisi
       case VehicleDamageActions.degisim:
-        return JobOperationType.partReplacement;
+        return JobOperationType.sokTak; // Kaporta kategorisi
       case VehicleDamageActions.temizle:
         return null;
       default:
@@ -125,15 +125,19 @@ class VehiclePartMapper {
 
   static String? operationTypeToDamageAction(JobOperationType operationType) {
     switch (operationType) {
-      case JobOperationType.paint:
+      // BOYA kategorisi
+      case JobOperationType.yeniBoya:
+      case JobOperationType.onarimBoya:
+      case JobOperationType.lokalBoya:
+      case JobOperationType.pasta:
         return VehicleDamageActions.boya;
-      case JobOperationType.bodyRepair:
+      // Kaporta kategorisi
+      case JobOperationType.onarim:
+      case JobOperationType.sokTak:
+      case JobOperationType.doseme:
+      case JobOperationType.parcaKurtarma:
+      case JobOperationType.boyasizOnarim:
         return VehicleDamageActions.kaporta;
-      case JobOperationType.partReplacement:
-        return VehicleDamageActions.degisim;
-      case JobOperationType.polish:
-      case JobOperationType.other:
-        return null;
     }
   }
 

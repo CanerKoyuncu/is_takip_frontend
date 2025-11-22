@@ -191,59 +191,147 @@ extension JobTaskStatusX on JobTaskStatus {
   }
 }
 
+/// Görev kategorisi enum'ı
+///
+/// Görevlerin hangi ana kategori altında olduğunu belirtir.
+enum TaskCategory {
+  /// Kaporta kategorisi
+  kaporta,
+
+  /// Boya kategorisi
+  boya,
+}
+
+/// TaskCategory extension'ı
+///
+/// Kategoriye göre label ve renk bilgilerini sağlar.
+extension TaskCategoryX on TaskCategory {
+  /// Kategorinin Türkçe etiketi
+  String get label {
+    switch (this) {
+      case TaskCategory.kaporta:
+        return 'Kaporta';
+      case TaskCategory.boya:
+        return 'BOYA';
+    }
+  }
+
+  /// Kategorinin ikonu
+  IconData get icon {
+    switch (this) {
+      case TaskCategory.kaporta:
+        return Icons.handyman_outlined;
+      case TaskCategory.boya:
+        return Icons.format_paint_outlined;
+    }
+  }
+}
+
 /// İşlem tipi enum'ı
 ///
 /// Görevde yapılacak işlem tipini belirtir.
+/// Her işlem tipi bir kategoriye aittir.
 enum JobOperationType {
-  /// Kaporta onarımı
-  bodyRepair,
+  // Kaporta kategorisi işlemleri
+  /// Sök - Tak
+  sokTak,
 
-  /// Boya işlemi
-  paint,
+  /// Onarım
+  onarim,
 
-  /// Parça değişimi
-  partReplacement,
+  /// Döşeme
+  doseme,
 
-  /// Cilalama
-  polish,
+  /// Parça Kurtarma
+  parcaKurtarma,
 
-  /// Diğer işlemler
-  other,
+  /// Boyasız Onarım
+  boyasizOnarim,
+
+  // BOYA kategorisi işlemleri
+  /// Yeni Boya
+  yeniBoya,
+
+  /// Onarım Boya
+  onarimBoya,
+
+  /// Lokal Boya
+  lokalBoya,
+
+  /// Pasta
+  pasta,
 }
 
 /// JobOperationType extension'ı
 ///
-/// İşlem tipine göre label ve ikon bilgilerini sağlar.
+/// İşlem tipine göre label, ikon ve kategori bilgilerini sağlar.
 extension JobOperationTypeX on JobOperationType {
   /// İşlem tipinin Türkçe etiketi
   String get label {
     switch (this) {
-      case JobOperationType.bodyRepair:
-        return 'Kaporta Onarım';
-      case JobOperationType.paint:
-        return 'Boya';
-      case JobOperationType.partReplacement:
-        return 'Parça Değişim';
-      case JobOperationType.polish:
-        return 'Cilalama';
-      case JobOperationType.other:
-        return 'Diğer';
+      // Kaporta kategorisi
+      case JobOperationType.sokTak:
+        return 'Sök - Tak';
+      case JobOperationType.onarim:
+        return 'Onarım';
+      case JobOperationType.doseme:
+        return 'Döşeme';
+      case JobOperationType.parcaKurtarma:
+        return 'Parça Kurtarma';
+      case JobOperationType.boyasizOnarim:
+        return 'Boyasız Onarım';
+      // BOYA kategorisi
+      case JobOperationType.yeniBoya:
+        return 'Yeni Boya';
+      case JobOperationType.onarimBoya:
+        return 'Onarım Boya';
+      case JobOperationType.lokalBoya:
+        return 'Lokal Boya';
+      case JobOperationType.pasta:
+        return 'Pasta';
     }
   }
 
   /// İşlem tipinin ikonu
   IconData get icon {
     switch (this) {
-      case JobOperationType.bodyRepair:
-        return Icons.handyman_outlined;
-      case JobOperationType.paint:
-        return Icons.format_paint_outlined;
-      case JobOperationType.partReplacement:
+      // Kaporta kategorisi
+      case JobOperationType.sokTak:
+        return Icons.swap_horiz_outlined;
+      case JobOperationType.onarim:
         return Icons.build_outlined;
-      case JobOperationType.polish:
+      case JobOperationType.doseme:
+        return Icons.chair_outlined;
+      case JobOperationType.parcaKurtarma:
+        return Icons.inventory_2_outlined;
+      case JobOperationType.boyasizOnarim:
         return Icons.auto_fix_high_outlined;
-      case JobOperationType.other:
-        return Icons.more_horiz;
+      // BOYA kategorisi
+      case JobOperationType.yeniBoya:
+        return Icons.format_paint_outlined;
+      case JobOperationType.onarimBoya:
+        return Icons.brush_outlined;
+      case JobOperationType.lokalBoya:
+        return Icons.auto_awesome_outlined;
+      case JobOperationType.pasta:
+        return Icons.cleaning_services_outlined;
+    }
+  }
+
+  /// İşlem tipinin ait olduğu kategori
+  TaskCategory get category {
+    switch (this) {
+      case JobOperationType.sokTak:
+      case JobOperationType.onarim:
+      case JobOperationType.doseme:
+      case JobOperationType.parcaKurtarma:
+      case JobOperationType.boyasizOnarim:
+        return TaskCategory.kaporta;
+      case JobOperationType.yeniBoya:
+      case JobOperationType.onarimBoya:
+      case JobOperationType.lokalBoya:
+      case JobOperationType.pasta:
+        return TaskCategory.boya;
     }
   }
 }
@@ -509,14 +597,14 @@ class JobOrder {
     final hasInProgressKaporta = _tasks.any(
       (task) =>
           task.status == JobTaskStatus.inProgress &&
-          task.operationType == JobOperationType.bodyRepair,
+          task.operationType.category == TaskCategory.kaporta,
     );
 
     // Devam eden boya işlemi var mı?
     final hasInProgressPaint = _tasks.any(
       (task) =>
           task.status == JobTaskStatus.inProgress &&
-          task.operationType == JobOperationType.paint,
+          task.operationType.category == TaskCategory.boya,
     );
 
     // Tüm görevler tamamlandıysa

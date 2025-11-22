@@ -253,6 +253,8 @@ file:///home/caner/.pub-cache/hosted/pub.dev/dio_web_adapter-2.1.1/lib/src/compu
 file:///home/caner/.pub-cache/hosted/pub.dev/dio_web_adapter-2.1.1/lib/src/dio_impl.dart
 file:///home/caner/.pub-cache/hosted/pub.dev/dio_web_adapter-2.1.1/lib/src/multipart_file_impl.dart
 file:///home/caner/.pub-cache/hosted/pub.dev/dio_web_adapter-2.1.1/lib/src/progress_stream_impl.dart
+file:///home/caner/.pub-cache/hosted/pub.dev/envied-0.5.4+1/lib/envied.dart
+file:///home/caner/.pub-cache/hosted/pub.dev/envied-0.5.4+1/lib/src/envied_base.dart
 file:///home/caner/.pub-cache/hosted/pub.dev/fixnum-1.1.1/lib/fixnum.dart
 file:///home/caner/.pub-cache/hosted/pub.dev/fixnum-1.1.1/lib/src/int32.dart
 file:///home/caner/.pub-cache/hosted/pub.dev/fixnum-1.1.1/lib/src/int64.dart
@@ -2152,6 +2154,8 @@ file:///home/caner/projects/yilbasi/is_takip/frontend/lib/core/widgets/info_row.
 file:///home/caner/projects/yilbasi/is_takip/frontend/lib/core/widgets/loading_indicator.dart
 file:///home/caner/projects/yilbasi/is_takip/frontend/lib/core/widgets/loading_snackbar.dart
 file:///home/caner/projects/yilbasi/is_takip/frontend/lib/core/widgets/photo_picker_dialog.dart
+file:///home/caner/projects/yilbasi/is_takip/frontend/lib/env.dart
+file:///home/caner/projects/yilbasi/is_takip/frontend/lib/env.g.dart
 file:///home/caner/projects/yilbasi/is_takip/frontend/lib/features/auth/presentation/screens/login_screen.dart
 file:///home/caner/projects/yilbasi/is_takip/frontend/lib/features/auth/providers/auth_provider.dart
 file:///home/caner/projects/yilbasi/is_takip/frontend/lib/features/jobs/models/job_models.dart

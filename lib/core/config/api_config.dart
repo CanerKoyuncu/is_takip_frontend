@@ -83,13 +83,13 @@ class ApiConfig {
     const envKey = String.fromEnvironment('API_KEY', defaultValue: '');
     if (envKey.isNotEmpty) return envKey;
 
-    // Envied ile build-time'da gömülen değer
-    final generatedKey = Env.apiKey;
-    if (generatedKey.isNotEmpty) return generatedKey;
-
     // Sonra .env dosyasından oku
     final dotenvKey = dotenv.env['API_KEY'];
     if (dotenvKey != null && dotenvKey.isNotEmpty) return dotenvKey;
+
+    // Envied ile build-time'da gömülen değer (fallback)
+    final generatedKey = Env.apiKey;
+    if (generatedKey.isNotEmpty) return generatedKey;
 
     // Default: boş (production key gerekli)
     return '';

@@ -131,19 +131,29 @@ class EnumMapper {
   /// Parametreler:
   /// - type: JobOperationType enum değeri
   ///
-  /// Döner: String - Backend formatında string (örn: "bodyRepair", "paint")
+  /// Döner: String - Backend formatında string (camelCase)
   static String jobOperationTypeToBackend(JobOperationType type) {
     switch (type) {
-      case JobOperationType.bodyRepair:
-        return 'bodyRepair';
-      case JobOperationType.paint:
-        return 'paint';
-      case JobOperationType.partReplacement:
-        return 'replacement';
-      case JobOperationType.polish:
-        return 'polish';
-      case JobOperationType.other:
-        return 'other';
+      // Kaporta kategorisi
+      case JobOperationType.sokTak:
+        return 'sokTak';
+      case JobOperationType.onarim:
+        return 'onarim';
+      case JobOperationType.doseme:
+        return 'doseme';
+      case JobOperationType.parcaKurtarma:
+        return 'parcaKurtarma';
+      case JobOperationType.boyasizOnarim:
+        return 'boyasizOnarim';
+      // BOYA kategorisi
+      case JobOperationType.yeniBoya:
+        return 'yeniBoya';
+      case JobOperationType.onarimBoya:
+        return 'onarimBoya';
+      case JobOperationType.lokalBoya:
+        return 'lokalBoya';
+      case JobOperationType.pasta:
+        return 'pasta';
     }
   }
 
@@ -152,25 +162,47 @@ class EnumMapper {
   /// Backend'den gelen string değerlerini Flutter enum'ına çevirir.
   ///
   /// Parametreler:
-  /// - value: Backend string değeri (örn: "bodyRepair", "paint")
+  /// - value: Backend string değeri (camelCase)
   ///
   /// Döner: JobOperationType - Enum değeri
   ///
-  /// Not: Bilinmeyen değerler için varsayılan olarak JobOperationType.other döner.
+  /// Not: Bilinmeyen değerler için varsayılan olarak JobOperationType.onarim döner.
+  /// Eski değerler için backward compatibility sağlanır.
   static JobOperationType jobOperationTypeFromBackend(String value) {
     switch (value) {
+      // Yeni değerler - Kaporta
+      case 'sokTak':
+        return JobOperationType.sokTak;
+      case 'onarim':
+        return JobOperationType.onarim;
+      case 'doseme':
+        return JobOperationType.doseme;
+      case 'parcaKurtarma':
+        return JobOperationType.parcaKurtarma;
+      case 'boyasizOnarim':
+        return JobOperationType.boyasizOnarim;
+      // Yeni değerler - BOYA
+      case 'yeniBoya':
+        return JobOperationType.yeniBoya;
+      case 'onarimBoya':
+        return JobOperationType.onarimBoya;
+      case 'lokalBoya':
+        return JobOperationType.lokalBoya;
+      case 'pasta':
+        return JobOperationType.pasta;
+      // Eski değerler - backward compatibility
       case 'bodyRepair':
-        return JobOperationType.bodyRepair;
+        return JobOperationType.onarim; // Eski bodyRepair -> yeni onarim
       case 'paint':
-        return JobOperationType.paint;
+        return JobOperationType.yeniBoya; // Eski paint -> yeni yeniBoya
       case 'replacement':
-        return JobOperationType.partReplacement;
+        return JobOperationType.sokTak; // Eski replacement -> yeni sokTak
       case 'polish':
-        return JobOperationType.polish;
+        return JobOperationType.pasta; // Eski polish -> yeni pasta
       case 'other':
-        return JobOperationType.other;
+        return JobOperationType.onarim; // Eski other -> yeni onarim (fallback)
       default:
-        return JobOperationType.other;
+        return JobOperationType.onarim; // Varsayılan: onarim
     }
   }
 

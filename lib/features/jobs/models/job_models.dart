@@ -233,6 +233,8 @@ extension TaskCategoryX on TaskCategory {
 /// Her işlem tipi bir kategoriye aittir.
 enum JobOperationType {
   // Kaporta kategorisi işlemleri
+  change,
+
   /// Sök - Tak
   sokTak,
 
@@ -270,6 +272,8 @@ extension JobOperationTypeX on JobOperationType {
   String get label {
     switch (this) {
       // Kaporta kategorisi
+      case JobOperationType.change:
+        return 'Değişim';
       case JobOperationType.sokTak:
         return 'Sök - Tak';
       case JobOperationType.onarim:
@@ -295,6 +299,8 @@ extension JobOperationTypeX on JobOperationType {
   /// İşlem tipinin ikonu
   IconData get icon {
     switch (this) {
+      case JobOperationType.change:
+        return Icons.swap_horiz_outlined;
       // Kaporta kategorisi
       case JobOperationType.sokTak:
         return Icons.swap_horiz_outlined;
@@ -321,6 +327,7 @@ extension JobOperationTypeX on JobOperationType {
   /// İşlem tipinin ait olduğu kategori
   TaskCategory get category {
     switch (this) {
+      case JobOperationType.change:
       case JobOperationType.sokTak:
       case JobOperationType.onarim:
       case JobOperationType.doseme:
@@ -340,14 +347,19 @@ extension JobOperationTypeX on JobOperationType {
 ///
 /// Fotoğrafın ne amaçla çekildiğini belirtir.
 enum TaskPhotoType {
-  /// Hasar fotoğrafı - işlem öncesi hasar durumu
   damage,
+
+  /// Onarım fotoğrafı - işlem öncesi hasar durumu
+  onRepair,
+
+  /// Boya fotoğrafı - işlem sonrası durum
+  onPaint,
+
+  /// Temizleme fotoğrafı - işlem sonrası durum
+  onClean,
 
   /// Tamamlanma fotoğrafı - işlem sonrası durum
   completion,
-
-  /// Diğer fotoğraflar
-  other,
 }
 
 /// TaskPhotoType extension'ı
@@ -359,10 +371,14 @@ extension TaskPhotoTypeX on TaskPhotoType {
     switch (this) {
       case TaskPhotoType.damage:
         return 'Hasar Fotoğrafı';
+      case TaskPhotoType.onRepair:
+        return 'Onarım Fotoğrafı';
+      case TaskPhotoType.onPaint:
+        return 'Boya Fotoğrafı';
+      case TaskPhotoType.onClean:
+        return 'Temizleme Fotoğrafı';
       case TaskPhotoType.completion:
         return 'Tamamlandı Fotoğrafı';
-      case TaskPhotoType.other:
-        return 'Uygulama Fotoğrafı';
     }
   }
 }

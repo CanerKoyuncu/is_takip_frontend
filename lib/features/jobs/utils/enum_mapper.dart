@@ -134,6 +134,8 @@ class EnumMapper {
   /// Döner: String - Backend formatında string (camelCase)
   static String jobOperationTypeToBackend(JobOperationType type) {
     switch (type) {
+      case JobOperationType.change:
+        return 'change';
       // Kaporta kategorisi
       case JobOperationType.sokTak:
         return 'sokTak';
@@ -308,8 +310,12 @@ class EnumMapper {
         return 'damage';
       case TaskPhotoType.completion:
         return 'completion';
-      case TaskPhotoType.other:
-        return 'other';
+      case TaskPhotoType.onRepair:
+        return 'onRepair';
+      case TaskPhotoType.onPaint:
+        return 'onPaint';
+      case TaskPhotoType.onClean:
+        return 'onClean';
     }
   }
 
@@ -329,8 +335,14 @@ class EnumMapper {
         return TaskPhotoType.damage;
       case 'completion':
         return TaskPhotoType.completion;
+      case 'onRepair':
+        return TaskPhotoType.onRepair;
+      case 'onPaint':
+        return TaskPhotoType.onPaint;
+      case 'onClean':
+        return TaskPhotoType.onClean;
       case 'other':
-        return TaskPhotoType.other;
+        return TaskPhotoType.damage;
       default:
         return TaskPhotoType.damage;
     }

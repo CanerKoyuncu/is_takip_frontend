@@ -193,8 +193,14 @@ class PdfTasksBuilder {
                               photoTypeLabel =
                                   'Tamamlanmış Haline Ait Fotoğraf';
                               break;
-                            case TaskPhotoType.other:
+                            case TaskPhotoType.onRepair:
                               photoTypeLabel = 'Onarım Anında Fotoğraf';
+                              break;
+                            case TaskPhotoType.onPaint:
+                              photoTypeLabel = 'Boya Fotoğrafı';
+                              break;
+                            case TaskPhotoType.onClean:
+                              photoTypeLabel = 'Temizleme Fotoğrafı';
                               break;
                           }
                         }
@@ -264,4 +270,3 @@ class PdfTasksBuilder {
     );
   }
 }
-

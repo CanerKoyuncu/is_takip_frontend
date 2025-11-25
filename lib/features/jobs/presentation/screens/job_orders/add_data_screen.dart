@@ -39,7 +39,13 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
         return Icons.broken_image_outlined;
       case TaskPhotoType.completion:
         return Icons.check_circle_outline;
-      case TaskPhotoType.other:
+      case TaskPhotoType.onRepair:
+        return Icons.build_outlined;
+      case TaskPhotoType.onPaint:
+        return Icons.format_paint_outlined;
+      case TaskPhotoType.onClean:
+        return Icons.cleaning_services_outlined;
+      case TaskPhotoType.completion:
         return Icons.photo_outlined;
     }
   }

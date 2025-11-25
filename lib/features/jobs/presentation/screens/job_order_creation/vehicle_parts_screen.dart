@@ -9,6 +9,7 @@ import '../../../models/vehicle_area.dart';
 import '../../../providers/jobs_provider.dart';
 import '../../../utils/svg_vehicle_part_loader.dart';
 import '../../../utils/vehicle_part_mapper.dart';
+import '../../../utils/task_category_styles.dart';
 import '../../widgets/vehicle_damage_map.dart';
 import 'package:is_takip/core/widgets/error_snackbar.dart';
 
@@ -154,20 +155,17 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
         }
 
         // Add operation-specific notes
-        if (draft.operationType.category == TaskCategory.boya &&
-            _paintNotesController.text.trim().isNotEmpty) {
-          final paintNote =
-              'Boya Notları: ${_paintNotesController.text.trim()}';
+        final category = draft.operationType.category;
+        final categoryController = category == TaskCategory.boya
+            ? _paintNotesController
+            : _bodyRepairNotesController;
+        final noteText = categoryController.text.trim();
+        if (noteText.isNotEmpty) {
+          final prefix = TaskCategoryStyles.noteTitle(category);
+          final categoryNote = '$prefix: $noteText';
           combinedNote = combinedNote != null && combinedNote.isNotEmpty
-              ? '$combinedNote\n\n$paintNote'
-              : paintNote;
-        } else if (draft.operationType.category == TaskCategory.kaporta &&
-            _bodyRepairNotesController.text.trim().isNotEmpty) {
-          final bodyNote =
-              'Kaporta Notları: ${_bodyRepairNotesController.text.trim()}';
-          combinedNote = combinedNote != null && combinedNote.isNotEmpty
-              ? '$combinedNote\n\n$bodyNote'
-              : bodyNote;
+              ? '$combinedNote\n\n$categoryNote'
+              : categoryNote;
         }
 
         return draft.copyWith(photoPaths: photos, note: combinedNote);
@@ -407,6 +405,11 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
                             ),
                             const SizedBox(height: 12),
                             ...taskDrafts.map((draft) {
+                              final draftCategoryColor =
+                                  TaskCategoryStyles.containerColor(
+                                    context,
+                                    draft.operationType.category,
+                                  );
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12),
                                 padding: const EdgeInsets.all(12),
@@ -425,16 +428,7 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
                                         Container(
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
-                                            color:
-                                                draft.operationType.category ==
-                                                    TaskCategory.boya
-                                                ? scheme.primaryContainer
-                                                : draft
-                                                          .operationType
-                                                          .category ==
-                                                      TaskCategory.kaporta
-                                                ? scheme.tertiaryContainer
-                                                : scheme.secondaryContainer,
+                                            color: draftCategoryColor,
                                             borderRadius: BorderRadius.circular(
                                               6,
                                             ),

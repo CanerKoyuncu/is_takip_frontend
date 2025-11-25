@@ -7,6 +7,7 @@ import '../../../models/job_models.dart';
 import '../../../models/job_task_draft.dart';
 import '../../../models/vehicle_area.dart';
 import '../../../providers/jobs_provider.dart';
+import '../../../utils/task_category_styles.dart';
 import '../../../utils/vehicle_part_mapper.dart';
 import '../../widgets/vehicle_damage_map.dart';
 
@@ -271,6 +272,11 @@ class _CreateJobOrderScreenState extends State<CreateJobOrderScreen> {
                           ),
                           const SizedBox(height: 8),
                           ...taskDrafts.map((draft) {
+                            final draftCategoryColor =
+                                TaskCategoryStyles.containerColor(
+                                  context,
+                                  draft.operationType.category,
+                                );
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(12),
@@ -286,14 +292,7 @@ class _CreateJobOrderScreenState extends State<CreateJobOrderScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color:
-                                          draft.operationType.category ==
-                                              TaskCategory.boya
-                                          ? scheme.primaryContainer
-                                          : draft.operationType.category ==
-                                                TaskCategory.kaporta
-                                          ? scheme.tertiaryContainer
-                                          : scheme.secondaryContainer,
+                                      color: draftCategoryColor,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Icon(

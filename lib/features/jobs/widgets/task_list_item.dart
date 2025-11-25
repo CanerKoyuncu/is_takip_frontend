@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/job_models.dart';
+import '../utils/task_category_styles.dart';
 import '../models/vehicle_area.dart';
 import '../providers/jobs_provider.dart';
 import 'task_status_chip.dart';
@@ -68,6 +69,10 @@ class TaskListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final categoryColor = TaskCategoryStyles.containerColor(
+      context,
+      task.operationType.category,
+    );
 
     Widget content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -80,11 +85,7 @@ class TaskListItem extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: task.operationType.category == TaskCategory.boya
-                      ? scheme.primaryContainer
-                      : task.operationType.category == TaskCategory.kaporta
-                      ? scheme.tertiaryContainer
-                      : scheme.secondaryContainer,
+                  color: categoryColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(

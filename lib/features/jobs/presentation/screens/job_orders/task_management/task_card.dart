@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../../../providers/jobs_provider.dart';
 import '../../../../models/job_models.dart';
 import '../../../../models/vehicle_area.dart';
+import '../../../../utils/task_category_styles.dart';
 import '../../../../../../core/widgets/error_snackbar.dart';
 import '../../../../../../core/widgets/photo_picker_dialog.dart';
 import '../../../../../../core/widgets/loading_snackbar.dart';
@@ -40,6 +41,10 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final provider = context.read<JobsProvider>();
+    final categoryColor = TaskCategoryStyles.containerColor(
+      context,
+      task.operationType.category,
+    );
 
     return Card(
       child: Padding(
@@ -52,11 +57,7 @@ class TaskCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: task.operationType.category == TaskCategory.boya
-                        ? scheme.primaryContainer
-                        : task.operationType.category == TaskCategory.kaporta
-                        ? scheme.tertiaryContainer
-                        : scheme.secondaryContainer,
+                    color: categoryColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(

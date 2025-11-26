@@ -136,11 +136,11 @@
   <sodipodi:namedview
      id="base"
      fit-margin-left="0"
-     inkscape:zoom="1"
+     inkscape:zoom="0.5"
      borderopacity="1.0"
-     inkscape:current-layer="sag"
-     inkscape:cx="1125"
-     inkscape:cy="195"
+     inkscape:current-layer="sol"
+     inkscape:cx="1186"
+     inkscape:cy="224"
      inkscape:window-maximized="1"
      showgrid="true"
      fit-margin-right="0"
@@ -501,7 +501,7 @@
       <path
          style="fill:none"
          d="m 335.38096,394.53977 c -3.74577,25.32021 -5.31346,50.97068 -6.51675,76.67641 2.37524,28.70091 6.90636,55.91007 14.41597,83.82618 l 155.91436,88.77081 38.30355,5.75225 96.02298,4.23212 -8.29026,-112.6979 -15.34264,1.99956 8.28579,98.61817 -86.40561,-4.39804 c -10.14293,5.62724 -113.05895,-45.07248 -166.25125,-89.96716 62.21249,-0.44021 218.24335,2.61083 241.32044,0.34207 l -3.06036,-45.08779 c -17.72133,1.94341 -28.97459,0.54302 -43.39229,0.77855 -2.71186,-4.83401 -2.34763,-9.66803 -0.042,-14.50204 l 37.60935,0.0258 c 1.22587,3.49919 3.06595,6.54018 1.24993,12.30871 l 3.46456,21.80349 3.9458,24.83204 19.38987,-2.81332 c -4.45532,-31.28601 -4.83767,-63.42835 -6.1083,-95.50148 1.52478,-33.32675 1.50578,-25.61649 6.65008,-56.03126 -45.70328,4.17026 -195.42904,-0.25117 -291.16321,1.03281 z"
-         id="path24075"
+         id="sag-on-kapi"
          sodipodi:nodetypes="cccccccccccccccccccccccc" />
       <path
          style="fill:none"
@@ -624,7 +624,7 @@
          style="stroke:#000000;stroke-width:2;fill:none"
          inkscape:connector-curvature="0" />
       <rect
-         id="sag-on-kapi"
+         id="rect1888"
          ry="7.379"
          style="stroke:#000000;stroke-width:2;fill:#e6e6e6"
          rx="2.9331"
@@ -929,7 +929,7 @@
        d="m 1338.5,829.07 h 40.8" />
     <g
        id="g3946"
-       transform="translate(-13.78,17.524)">
+       transform="translate(-13.78,11.524)">
       <circle
          id="path3857-97"
          style="fill:#3c3c3c;stroke:#000000;stroke-width:2"

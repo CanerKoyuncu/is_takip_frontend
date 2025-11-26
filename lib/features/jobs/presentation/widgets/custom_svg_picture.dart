@@ -405,11 +405,14 @@ class CustomSvgCache {
     List<SvgShape> shapes,
     String? activePartId,
   ) {
-    // Element ID'sini kontrol et - eğer bir part ID'si ise kullan
     final elementId = element.getAttribute('id');
-    final nextPartId = (elementId != null && elementId.isNotEmpty)
-        ? elementId
-        : activePartId;
+    final isGroup = element.name.local == 'g';
+
+    // Grup elemanlarında ID'yi çocuklara aktar; aksi halde mevcut id'yi koru
+    String? nextPartId = activePartId;
+    if (isGroup && elementId != null && elementId.isNotEmpty) {
+      nextPartId = elementId;
+    }
 
     final localTransform = _parseTransform(element.getAttribute('transform'));
     final combinedTransform = vm.Matrix4.copy(transform)
@@ -488,13 +491,17 @@ class CustomSvgCache {
             '0',
       );
 
+      // Eğer aktif bir parça ID'si varsa onu kullan, yoksa element ID'sine düş
+      final shapePartId =
+          nextPartId ?? (elementId != null && elementId.isNotEmpty ? elementId : null);
+
       shapes.add(
         SvgShape(
           path: transformedPath,
           fillColor: fillColor,
           strokeColor: strokeColor,
           strokeWidth: strokeWidth,
-          partId: nextPartId, // Parent group ID veya element ID
+          partId: shapePartId, // Parent group ID veya element ID
         ),
       );
     }

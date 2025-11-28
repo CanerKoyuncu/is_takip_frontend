@@ -1,16 +1,16 @@
-/// SVG Araç Parçası Yükleyici
-///
-/// Bu sınıf, gruplandırılmış SVG dosyalarını (örn: `car-cutout-grouped.svg`) yükler
-/// ve her bir grubu VehiclePart instance'larına dönüştürür.
-///
-/// Özellikler:
-/// - SVG dosyasını assets'den yükleme
-/// - SVG gruplarını parse etme
-/// - Her grubu tıklanabilir VehiclePart'e dönüştürme
-/// - Cache mekanizması (aynı dosya tekrar yüklenmez)
-///
-/// Kullanım: Hasar haritası UI'ında araç parçalarını göstermek ve
-/// tıklanabilir hale getirmek için kullanılır.
+// SVG Araç Parçası Yükleyici
+//
+// Bu sınıf, gruplandırılmış SVG dosyalarını (örn: `car-cutout-grouped.svg`) yükler
+// ve her bir grubu VehiclePart instance'larına dönüştürür.
+//
+// Özellikler:
+// - SVG dosyasını assets'den yükleme
+// - SVG gruplarını parse etme
+// - Her grubu tıklanabilir VehiclePart'e dönüştürme
+// - Cache mekanizması (aynı dosya tekrar yüklenmez)
+//
+// Kullanım: Hasar haritası UI'ında araç parçalarını göstermek ve
+// tıklanabilir hale getirmek için kullanılır.
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -34,6 +34,10 @@ class SvgVehiclePartLoader {
   // Singleton instance
   static final SvgVehiclePartLoader instance = SvgVehiclePartLoader._();
 
+  /// Config list exposed for UI usage (read-only).
+  static Map<String, VehicleSvgPartConfig> get partConfigs =>
+      Map.unmodifiable(_defaultPartConfigs);
+
   // Cache - aynı dosya tekrar yüklenmez
   final Map<String, Future<List<VehiclePart>>> _cache = {};
 
@@ -43,9 +47,9 @@ class SvgVehiclePartLoader {
   ///
   /// Parametreler:
   /// - assetName: SVG dosya yolu (varsayılan: 'assets/car-cutout-grouped.svg')
-  /// - partConfigs: Parça yapılandırmaları (varsayılan: _defaultPartConfigs)
+  /// - partConfigs: Parça yapılandırmaları (varsayılan: `_defaultPartConfigs`)
   ///
-  /// Döner: Future<List<VehiclePart>> - Yüklenen parçalar listesi
+  /// Döner: `Future<List<VehiclePart>>` - Yüklenen parçalar listesi
   Future<List<VehiclePart>> load({
     String assetName = 'assets/car-cutout-grouped.svg',
     Map<String, VehicleSvgPartConfig> partConfigs = _defaultPartConfigs,

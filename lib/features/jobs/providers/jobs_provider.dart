@@ -49,6 +49,8 @@ class JobsProvider extends ChangeNotifier {
   final List<JobOrder> _allAssignedTasks = [];
   // Bekleyen görevler cache'i - supervisor için
   final List<JobOrder> _pendingTasks = [];
+  // İş notları cache'i (jobId -> notes)
+  final Map<String, List<JobNote>> _jobNotes = {};
   // Yükleme durumu - API isteği devam ediyor mu?
   bool _isLoading = false;
   // Hata mesajı - işlem başarısız olduğunda
@@ -69,6 +71,12 @@ class JobsProvider extends ChangeNotifier {
   /// Bekleyen görevler listesi (immutable) - supervisor için
   List<JobOrder> get pendingTasks => List.unmodifiable(_pendingTasks);
 
+  Map<String, List<JobNote>> get jobNotes => Map.unmodifiable(
+    _jobNotes.map(
+      (key, value) => MapEntry(key, List<JobNote>.unmodifiable(value)),
+    ),
+  );
+
   /// Yükleme durumu
   bool get isLoading => _isLoading;
 
@@ -88,6 +96,30 @@ class JobsProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  List<JobNote> jobNotesForJob(String jobId) {
+    return List<JobNote>.unmodifiable(_jobNotes[jobId] ?? const []);
+  }
+
+  JobNote? generalNoteForJob(String jobId) {
+    final notes = _jobNotes[jobId];
+    if (notes == null) return null;
+    for (final note in notes) {
+      if (note.taskId == null) return note;
+    }
+    return null;
+  }
+
+  JobNote? taskNoteForJob(String jobId, String taskId) {
+    final notes = _jobNotes[jobId];
+    if (notes == null) return null;
+    for (final note in notes) {
+      if (note.taskId == taskId) return note;
+    }
+    return null;
+  }
+
+  bool jobNotesLoaded(String jobId) => _jobNotes.containsKey(jobId);
 
   /// Belirli bir iş emrini API'den yükler
   ///
@@ -116,6 +148,9 @@ class JobsProvider extends ChangeNotifier {
         _jobs.add(job); // Yeni ise ekle
       } else {
         _jobs[index] = job; // Varsa güncelle
+      }
+      if (_jobNotes.containsKey(id)) {
+        _applyNotesToJob(id, _jobNotes[id]!);
       }
       notifyListeners();
       return job;
@@ -490,6 +525,7 @@ class JobsProvider extends ChangeNotifier {
         jobId: jobId,
         taskId: taskId,
         blockingReason: blockingReason,
+        updateBlockingReason: true,
         isTaskAvailable: isTaskAvailable,
       );
       // Backend'den güncel veriyi al
@@ -747,18 +783,7 @@ class JobsProvider extends ChangeNotifier {
     required String taskId,
     required String note,
   }) async {
-    final index = _jobs.indexWhere((job) => job.id == jobId);
-    if (index == -1) return;
-
-    final job = _jobs[index];
-    // Görev notunu güncelle
-    final updatedTasks = job.tasks.map((task) {
-      if (task.id != taskId) return task;
-      return task.copyWith(note: note);
-    }).toList();
-
-    _jobs[index] = job.copyWith(tasks: updatedTasks);
-    notifyListeners();
+    await upsertJobNote(jobId: jobId, taskId: taskId, content: note);
   }
 
   /// Genel notları günceller
@@ -772,26 +797,7 @@ class JobsProvider extends ChangeNotifier {
     required String jobId,
     required String notes,
   }) async {
-    _setLoading(true);
-    _setError(null);
-
-    try {
-      // Backend'e genel notları güncelleme isteği gönder
-      final job = await _jobsApiService.updateJob(jobId, {
-        'generalNotes': notes,
-      });
-
-      // Cache'i güncelle
-      final index = _jobs.indexWhere((job) => job.id == jobId);
-      if (index != -1) {
-        _jobs[index] = job;
-        notifyListeners();
-      }
-    } catch (e) {
-      _setError('Notlar güncellenirken hata oluştu: ${e.toString()}');
-    } finally {
-      _setLoading(false);
-    }
+    await upsertJobNote(jobId: jobId, content: notes);
   }
 
   /// İş emrine görev ekler
@@ -862,11 +868,48 @@ class JobsProvider extends ChangeNotifier {
       final index = _jobs.indexWhere((job) => job.id == jobId);
       if (index != -1) {
         _jobs[index] = job;
+        if (_jobNotes.containsKey(jobId)) {
+          _applyNotesToJob(jobId, _jobNotes[jobId]!);
+        }
         notifyListeners();
       }
     } catch (e) {
       // Sessizce başarısız ol (hata zaten gösterilmiş)
     }
+  }
+
+  void _applyNotesToJob(String jobId, List<JobNote> notes) {
+    final index = _jobs.indexWhere((job) => job.id == jobId);
+    if (index == -1) return;
+    final job = _jobs[index];
+    String? generalNotes = job.generalNotes;
+    final updatedTasks = job.tasks.map((task) {
+      final note = _findNote(notes, (element) => element.taskId == task.id);
+      if (note != null) {
+        return task.copyWith(note: note.content);
+      }
+      return task;
+    }).toList();
+
+    final generalNote = _findNote(notes, (note) => note.taskId == null);
+    if (generalNote != null) {
+      generalNotes = generalNote.content;
+    }
+
+    _jobs[index] = job.copyWith(
+      tasks: updatedTasks,
+      generalNotes: generalNotes,
+    );
+  }
+
+  JobNote? _findNote(
+    List<JobNote> notes,
+    bool Function(JobNote note) predicate,
+  ) {
+    for (final note in notes) {
+      if (predicate(note)) return note;
+    }
+    return null;
   }
 
   /// Yükleme durumunu ayarlar (private metod)
@@ -993,6 +1036,52 @@ class JobsProvider extends ChangeNotifier {
       _setError('Bekleyen görevler yüklenirken hata oluştu: ${e.toString()}');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> ensureJobNotesLoaded(String jobId) async {
+    if (_jobNotes.containsKey(jobId)) return;
+    await loadJobNotes(jobId: jobId);
+  }
+
+  Future<void> loadJobNotes({required String jobId, bool force = false}) async {
+    if (!force && _jobNotes.containsKey(jobId)) return;
+    try {
+      final notes = await _jobsApiService.getJobNotes(jobId);
+      _jobNotes[jobId] = notes;
+      _applyNotesToJob(jobId, notes);
+      notifyListeners();
+    } catch (e) {
+      _setError('Notlar yüklenirken hata oluştu: ${e.toString()}');
+    }
+  }
+
+  Future<JobNote> upsertJobNote({
+    required String jobId,
+    String? taskId,
+    required String content,
+  }) async {
+    final normalizedContent = content.trim();
+    try {
+      final note = await _jobsApiService.upsertJobNote(
+        jobId: jobId,
+        taskId: taskId,
+        content: normalizedContent,
+      );
+      final current = List<JobNote>.from(_jobNotes[jobId] ?? const []);
+      final index = current.indexWhere((item) => item.taskId == note.taskId);
+      if (index >= 0) {
+        current[index] = note;
+      } else {
+        current.add(note);
+      }
+      _jobNotes[jobId] = current;
+      _applyNotesToJob(jobId, current);
+      notifyListeners();
+      return note;
+    } catch (e) {
+      _setError('Not kaydedilirken hata oluştu: ${e.toString()}');
+      rethrow;
     }
   }
 }

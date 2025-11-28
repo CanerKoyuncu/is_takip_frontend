@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:is_takip/env.dart';
@@ -47,8 +48,10 @@ class ApiConfig {
       if (dotenvUrl != null && dotenvUrl.isNotEmpty) {
         url = dotenvUrl;
       } else {
-        // Default: Nginx üzerinden (production ve local development)
-        url = 'https://yb.cram.services/api';
+        // Default: Debug -> localhost, Release/Profile -> production domain
+        url = kReleaseMode || kProfileMode
+            ? 'https://yb.cram.services/api'
+            : 'http://localhost:4000/api';
       }
     }
 

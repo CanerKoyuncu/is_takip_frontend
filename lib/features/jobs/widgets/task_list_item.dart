@@ -17,6 +17,7 @@ import 'task_photo_dialog.dart';
 import '../../../../core/widgets/error_snackbar.dart';
 import '../../../../core/widgets/loading_snackbar.dart';
 import '../presentation/screens/job_orders/task_management/complete_task_dialog.dart';
+import '../presentation/screens/job_orders/task_management/pause_task_dialog.dart';
 import '../presentation/widgets/worker_select_dialog.dart';
 
 /// Task list item widget'ı
@@ -34,6 +35,9 @@ class TaskListItem extends StatelessWidget {
     this.showDetailedDialog = true,
     this.showActionButtons = false,
     this.assignedWorkerId,
+    this.showPauseButton = false,
+    this.noteOverride,
+    this.allowInlineNoteEdit = false,
   });
 
   /// Görev
@@ -65,6 +69,17 @@ class TaskListItem extends StatelessWidget {
   /// Eğer verilirse, görev başlatırken personel seçim dialog'u açılmaz
   final String? assignedWorkerId;
 
+  /// Devam eden görevler için "Duraklat" butonu göster? (varsayılan: false)
+  /// Kiosk modunda kullanılır.
+  final bool showPauseButton;
+
+  /// İş emri detayında görev notunu aynı ekrandan düzenleyebilmek için
+  /// "Not Ekle / Düzenle" butonu gösterir.
+  final bool allowInlineNoteEdit;
+
+  /// Harici not değeri (ayrı note tablosu için).
+  final String? noteOverride;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -73,6 +88,7 @@ class TaskListItem extends StatelessWidget {
       context,
       task.operationType.category,
     );
+    final noteText = noteOverride ?? task.note;
 
     Widget content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -192,15 +208,34 @@ class TaskListItem extends StatelessWidget {
                         );
                       },
                     ),
-                    if (task.note != null && task.note!.isNotEmpty) ...[
+                    if (noteText != null && noteText.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        task.note!,
+                        noteText,
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (allowInlineNoteEdit) ...[
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: () => _editNote(context),
+                        icon: const Icon(Icons.edit_note, size: 16),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          minimumSize: const Size(0, 24),
+                        ),
+                        label: Text(
+                          noteText == null || noteText.isEmpty
+                              ? 'Not Ekle'
+                              : 'Notu Düzenle',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -292,13 +327,31 @@ class TaskListItem extends StatelessWidget {
                       )
                     else if (task.status == JobTaskStatus.inProgress)
                       Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => _completeTask(context),
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Tamamla'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.green,
-                          ),
+                        child: Row(
+                          children: [
+                            if (showPauseButton)
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: () => _pauseTask(context),
+                                  icon: const Icon(Icons.pause, size: 18),
+                                  label: const Text('Duraklat'),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                ),
+                              ),
+                            if (showPauseButton) const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () => _completeTask(context),
+                                icon: const Icon(Icons.check, size: 18),
+                                label: const Text('Tamamla'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       )
                     else if (task.status == JobTaskStatus.paused)
@@ -424,6 +477,163 @@ class TaskListItem extends StatelessWidget {
           LoadingSnackbar.hide(context);
           ErrorSnackbar.showError(context, 'Görev tamamlanırken hata: $e');
         }
+      }
+    }
+  }
+
+  Future<void> _pauseTask(BuildContext context) async {
+    final provider = context.read<JobsProvider>();
+    final note = await showDialog<String?>(
+      context: context,
+      builder: (context) => PauseTaskDialog(task: task),
+    );
+
+    if (!context.mounted) return;
+
+    try {
+      LoadingSnackbar.show(
+        context,
+        message: 'Görev duraklatılıyor...',
+      );
+      await provider.pauseTask(
+        jobId: jobId,
+        taskId: task.id,
+        note: note,
+      );
+      if (context.mounted) {
+        LoadingSnackbar.hide(context);
+        ErrorSnackbar.showSuccess(
+          context,
+          'Görev duraklatıldı',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        LoadingSnackbar.hide(context);
+        ErrorSnackbar.showError(
+          context,
+          'Görev duraklatılırken hata: $e',
+        );
+      }
+    }
+  }
+
+  Future<void> _editNote(BuildContext context) async {
+    final controller = TextEditingController(text: noteOverride ?? task.note ?? '');
+    final focusNode = FocusNode();
+
+    void insertListItem(String prefix) {
+      final text = controller.text;
+      final selection = controller.selection;
+      final start = selection.start >= 0 ? selection.start : text.length;
+      final end = selection.end >= 0 ? selection.end : start;
+      final previousChar = start > 0 && start <= text.length ? text[start - 1] : null;
+      final needsNewline = previousChar != null && previousChar != '\n';
+      final insertion = '${needsNewline ? '\n' : ''}$prefix';
+      final updatedText = text.replaceRange(start, end, insertion);
+      final newOffset = start + insertion.length;
+      controller.value = TextEditingValue(
+        text: updatedText,
+        selection: TextSelection.collapsed(offset: newOffset),
+      );
+    }
+
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Görev Notu'),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            insertListItem('• ');
+                            focusNode.requestFocus();
+                          },
+                          icon: const Icon(Icons.format_list_bulleted_outlined, size: 18),
+                          label: const Text('Madde Ekle'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            insertListItem('- [ ] ');
+                            focusNode.requestFocus();
+                          },
+                          icon: const Icon(Icons.check_box_outline_blank, size: 18),
+                          label: const Text('Kontrol Listesi'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    minLines: 5,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    decoration: const InputDecoration(
+                      labelText: 'Not',
+                      hintText: 'Bu görev için not girin...',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('İptal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop(controller.text.trim());
+              },
+              child: const Text('Kaydet'),
+            ),
+          ],
+        );
+      },
+    );
+
+    focusNode.dispose();
+
+    if (result == null) return;
+    final newNote = result;
+
+    final provider = context.read<JobsProvider>();
+    try {
+      LoadingSnackbar.show(context, message: 'Görev notu güncelleniyor...');
+      await provider.upsertJobNote(
+        jobId: jobId,
+        taskId: task.id,
+        content: newNote,
+      );
+      if (context.mounted) {
+        LoadingSnackbar.hide(context);
+        ErrorSnackbar.showSuccess(context, 'Görev notu güncellendi');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        LoadingSnackbar.hide(context);
+        ErrorSnackbar.showError(
+          context,
+          'Görev notu güncellenirken hata: $e',
+        );
       }
     }
   }

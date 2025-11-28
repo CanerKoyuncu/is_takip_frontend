@@ -3,15 +3,18 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import 'package:is_takip/core/widgets/error_snackbar.dart';
+
 import '../../../models/job_models.dart';
 import '../../../models/job_task_draft.dart';
 import '../../../models/vehicle_area.dart';
 import '../../../providers/jobs_provider.dart';
+import '../../../utils/damage_action_styles.dart';
 import '../../../utils/svg_vehicle_part_loader.dart';
-import '../../../utils/vehicle_part_mapper.dart';
 import '../../../utils/task_category_styles.dart';
+import '../../../utils/vehicle_part_mapper.dart';
 import '../../widgets/vehicle_damage_map.dart';
-import 'package:is_takip/core/widgets/error_snackbar.dart';
+import '../../widgets/vehicle_damage_map/vehicle_action_sheet.dart';
 
 /// İş Emri Oluşturma Sayfası
 /// Araç hasar haritası, araç/müşteri bilgileri ve notlar tek sayfada
@@ -36,16 +39,29 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
   final Map<String, List<String>> _taskPhotos = {}; // draftKey -> photo paths
   final Map<String, TextEditingController> _taskNoteControllers =
       {}; // draftKey -> controller
+  final TextEditingController _partSearchController = TextEditingController();
+  final Map<String, VehicleSvgPartConfig> _allPartConfigs =
+      SvgVehiclePartLoader.partConfigs;
+  static const List<String> _partSectionOrder = <String>[
+    'Ön',
+    'Sol',
+    'Sağ',
+    'Arka',
+    'Tavan / Cam',
+    'Diğer',
+  ];
 
   VehiclePartSelections _selections = {};
   List<VehiclePart>? _parts;
   String? _selectedPartId;
   bool _isLoading = false;
   bool _isCreating = false;
+  String _partSearchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _partSearchController.addListener(_onPartSearchChanged);
     _loadParts();
   }
 
@@ -161,8 +177,12 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
             : _bodyRepairNotesController;
         final noteText = categoryController.text.trim();
         if (noteText.isNotEmpty) {
-          final prefix = TaskCategoryStyles.noteTitle(category);
-          final categoryNote = '$prefix: $noteText';
+          final categoryNote = _formatCategoryNote(
+            category: category,
+            area: draft.area,
+            operationType: draft.operationType,
+            baseNote: noteText,
+          );
           combinedNote = combinedNote != null && combinedNote.isNotEmpty
               ? '$combinedNote\n\n$categoryNote'
               : categoryNote;
@@ -231,7 +251,189 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
     _bodyRepairNotesController.dispose();
     _otherNotesController.dispose();
     _disposeTaskNoteControllers();
+    _partSearchController.dispose();
     super.dispose();
+  }
+
+  void _onPartSearchChanged() {
+    setState(() {
+      _partSearchQuery = _partSearchController.text;
+    });
+  }
+
+  Map<String, List<String>> _cloneSelections(Map<String, List<String>> source) {
+    return source.map((key, value) => MapEntry(key, List<String>.from(value)));
+  }
+
+  List<String> _normalizedActions(List<String>? actions) {
+    if (actions == null || actions.isEmpty) {
+      return const [];
+    }
+    final normalized = <String>[];
+    for (final action in damageActionPriority) {
+      if (actions.contains(action)) {
+        normalized.add(action);
+      }
+    }
+    return normalized;
+  }
+
+  List<_PartListItem> _filteredParts() {
+    final partMap = {
+      for (final part in (_parts ?? const <VehiclePart>[])) part.id: part,
+    };
+    final configs = _allPartConfigs.values.toList()
+      ..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
+
+    final query = _partSearchQuery.trim().toLowerCase();
+    final items = configs.map((config) {
+      final svgPart = partMap[config.id];
+      return _PartListItem(
+        id: config.id,
+        displayName: config.displayName,
+        part: svgPart,
+      );
+    }).toList();
+
+    if (query.isEmpty) {
+      return items;
+    }
+
+    return items
+        .where(
+          (item) =>
+              item.displayName.toLowerCase().contains(query) ||
+              item.id.toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
+  List<_PartListEntry> _buildPartListEntries(List<_PartListItem> parts) {
+    final grouped = <String, List<_PartListItem>>{};
+    for (final part in parts) {
+      final section = _sectionForPart(part.id);
+      grouped.putIfAbsent(section, () => []).add(part);
+    }
+
+    final sortedKeys = grouped.keys.toList()
+      ..sort((a, b) => _sectionSortIndex(a).compareTo(_sectionSortIndex(b)));
+
+    final entries = <_PartListEntry>[];
+    for (final key in sortedKeys) {
+      final sectionParts = grouped[key]!
+        ..sort(
+          (a, b) => a.displayName.toLowerCase().compareTo(
+            b.displayName.toLowerCase(),
+          ),
+        );
+      entries.add(_PartListEntry.header(key));
+      entries.addAll(sectionParts.map(_PartListEntry.part));
+    }
+    return entries;
+  }
+
+  int _sectionSortIndex(String section) {
+    final index = _partSectionOrder.indexOf(section);
+    return index >= 0 ? index : _partSectionOrder.length;
+  }
+
+  String _sectionForPart(String partId) {
+    final normalized = _normalizeId(partId);
+    if (normalized.contains('cam') ||
+        normalized.contains('sunroof') ||
+        normalized.contains('tavan')) {
+      return 'Tavan / Cam';
+    }
+    if (normalized.contains('sol')) return 'Sol';
+    if (normalized.contains('sag')) return 'Sağ';
+    if (normalized.contains('arka') || normalized.contains('yakit')) {
+      return 'Arka';
+    }
+    if (normalized.contains('on')) return 'Ön';
+    return 'Diğer';
+  }
+
+  String _normalizeId(String input) {
+    const replacements = {
+      'ı': 'i',
+      'ğ': 'g',
+      'ü': 'u',
+      'ş': 's',
+      'ö': 'o',
+      'ç': 'c',
+    };
+    var value = input.toLowerCase();
+    replacements.forEach((src, target) {
+      value = value.replaceAll(src, target);
+    });
+    return value;
+  }
+
+  Future<void> _showPartActionSheet(VehiclePart part) async {
+    final currentActions = List<String>.from(_selections[part.id] ?? []);
+    final updatedActions = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) =>
+          VehicleActionSheet(part: part, selectedActions: currentActions),
+    );
+
+    if (!mounted || updatedActions == null) {
+      return;
+    }
+
+    setState(() {
+      final next = _cloneSelections(_selections);
+      if (updatedActions.isEmpty) {
+        next.remove(part.id);
+      } else {
+        next[part.id] = List<String>.from(updatedActions);
+      }
+      _selections = next;
+      _selectedPartId = part.id;
+    });
+  }
+
+  void _clearPartSelection(VehiclePart part) {
+    if (!_selections.containsKey(part.id)) return;
+    setState(() {
+      final next = _cloneSelections(_selections);
+      next.remove(part.id);
+      _selections = next;
+      if (_selectedPartId == part.id) {
+        _selectedPartId = null;
+      }
+    });
+  }
+
+  String _formatCategoryNote({
+    required TaskCategory category,
+    required VehicleArea area,
+    required JobOperationType operationType,
+    required String baseNote,
+  }) {
+    final prefix = TaskCategoryStyles.noteTitle(category);
+    final header =
+        '$prefix · ${area.label} (${operationType.label.toLowerCase()})';
+    final normalizedLines = baseNote
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    if (normalizedLines.isEmpty) {
+      return header;
+    }
+
+    if (normalizedLines.length == 1) {
+      return '$header\n${normalizedLines.first}';
+    }
+
+    final bullets = normalizedLines.map((line) => '• $line').join('\n');
+    return '$header\n$bullets';
   }
 
   @override
@@ -336,15 +538,7 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
                                       '[VehiclePartsScreen] Selections updated: ${updated.length} parts',
                                     );
                                     setState(() {
-                                      _selections =
-                                          Map<String, List<String>>.from(
-                                            updated.map(
-                                              (key, value) => MapEntry(
-                                                key,
-                                                List<String>.from(value),
-                                              ),
-                                            ),
-                                          );
+                                      _selections = _cloneSelections(updated);
                                     });
                                     debugPrint(
                                       '[VehiclePartsScreen] _selections state updated: ${_selections.length} parts',
@@ -363,6 +557,44 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  if (_parts != null)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Parça Listesi',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _partSearchController,
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.search),
+                                suffixIcon: _partSearchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          _partSearchController.clear();
+                                          _onPartSearchChanged();
+                                        },
+                                      )
+                                    : null,
+                                hintText: 'Parça ara (örn. kapı, tampon)',
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildPartList(context),
+                          ],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
 
                   // Warning if selections exist but no tasks
@@ -695,4 +927,140 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
             ),
     );
   }
+
+  Widget _buildPartList(BuildContext context) {
+    final parts = _filteredParts();
+    final scheme = Theme.of(context).colorScheme;
+
+    if (parts.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Text(
+          _partSearchQuery.trim().isEmpty
+              ? 'Parça bulunamadı.'
+              : 'Aramaya uygun parça bulunamadı.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      );
+    }
+
+    final entries = _buildPartListEntries(parts);
+    final textTheme = Theme.of(context).textTheme;
+
+    return SizedBox(
+      height: 320,
+      child: Scrollbar(
+        child: ListView.builder(
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            if (entry.isHeader) {
+              return Padding(
+                padding: EdgeInsets.fromLTRB(4, index == 0 ? 0 : 16, 4, 6),
+                child: Text(
+                  entry.label!,
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.primary,
+                  ),
+                ),
+              );
+            }
+
+            final item = entry.item!;
+            final resolvedPart =
+                item.part ??
+                VehiclePart(
+                  id: item.id,
+                  displayName: item.displayName,
+                  path: Path(),
+                );
+            final actions = _normalizedActions(_selections[item.id]);
+            final hasSelection = actions.isNotEmpty;
+            final previousIsHeader = index == 0
+                ? true
+                : entries[index - 1].isHeader;
+
+            final tile = ListTile(
+              onTap: () {
+                setState(() => _selectedPartId = resolvedPart.id);
+                _showPartActionSheet(resolvedPart);
+              },
+              selected: _selectedPartId == resolvedPart.id,
+              selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.2),
+              title: Text(item.displayName),
+              subtitle: hasSelection
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: actions.map((action) {
+                          final style = damageActionStyle(action);
+                          return Chip(
+                            backgroundColor:
+                                style?.color.withValues(alpha: 0.2) ??
+                                scheme.surfaceContainerHighest,
+                            label: Text(action),
+                            avatar: Icon(
+                              Icons.circle,
+                              size: 12,
+                              color: style?.color ?? scheme.primary,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    )
+                  : Text(
+                      'İşlem seçilmedi',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasSelection)
+                    IconButton(
+                      tooltip: 'Seçimi temizle',
+                      icon: const Icon(Icons.undo),
+                      onPressed: () => _clearPartSelection(resolvedPart),
+                    ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            );
+
+            return Column(
+              children: [if (!previousIsHeader) const Divider(height: 1), tile],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PartListEntry {
+  const _PartListEntry.header(this.label) : item = null, isHeader = true;
+
+  const _PartListEntry.part(this.item) : label = null, isHeader = false;
+
+  final String? label;
+  final _PartListItem? item;
+  final bool isHeader;
+}
+
+class _PartListItem {
+  const _PartListItem({required this.id, required this.displayName, this.part});
+
+  final String id;
+  final String displayName;
+  final VehiclePart? part;
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/vehicle_area.dart';
 
-/// Priority order used for drawing and legends.
+/// Priority order used for drawing and legends (canonical keys).
 const List<String> damageActionPriority = <String>[
   VehicleDamageActions.boya,
   VehicleDamageActions.kaporta,
@@ -53,22 +53,63 @@ const Map<String, DamageActionStyle> _damageActionStyles =
       ),
     };
 
+/// Yeni action formatlarını (örn. "kaporta:onarim", "boya:yeniBoya")
+/// eski kategorik anahtarlara map eder.
+String _canonicalActionKey(String action) {
+  // Temizle özel case
+  if (action == VehicleDamageActions.temizle) {
+    return VehicleDamageActions.temizle;
+  }
+
+  // Yeni format: "category:operationType"
+  final parts = action.split(':');
+  if (parts.length == 2) {
+    final categoryPart = parts.first;
+    switch (categoryPart) {
+      case 'boya':
+        return VehicleDamageActions.boya;
+      case 'kaporta':
+        return VehicleDamageActions.kaporta;
+      default:
+        break;
+    }
+  }
+
+  // Eski formatlarda doğrudan kullan
+  if (_damageActionStyles.containsKey(action)) {
+    return action;
+  }
+
+  return action;
+}
+
 /// Returns the style for the given action, or null if not supported.
 DamageActionStyle? damageActionStyle(String action) {
-  return _damageActionStyles[action];
+  final key = _canonicalActionKey(action);
+  return _damageActionStyles[key];
 }
 
 /// Convenience helper for retrieving the base color of an action.
 Color? damageActionColor(String action) {
-  return _damageActionStyles[action]?.color;
+  final key = _canonicalActionKey(action);
+  return _damageActionStyles[key]?.color;
 }
 
 /// Helper that returns the stripe angle (in degrees) for an action, if any.
 double? damageActionStripeAngle(String action) {
-  return _damageActionStyles[action]?.stripeAngle;
+  final key = _canonicalActionKey(action);
+  return _damageActionStyles[key]?.stripeAngle;
 }
 
 /// Legend label for the given action (localized / descriptive text).
 String damageActionLabel(String action) {
-  return _damageActionStyles[action]?.label ?? action;
+  final key = _canonicalActionKey(action);
+  return _damageActionStyles[key]?.label ?? action;
+}
+
+/// Verilen action için öncelik index'i (küçük = daha öncelikli).
+int damageActionPriorityIndex(String action) {
+  final key = _canonicalActionKey(action);
+  final index = damageActionPriority.indexOf(key);
+  return index >= 0 ? index : damageActionPriority.length;
 }

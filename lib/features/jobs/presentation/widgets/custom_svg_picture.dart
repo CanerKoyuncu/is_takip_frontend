@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
@@ -161,6 +162,12 @@ class _CustomSvgPainter extends CustomPainter {
           paint.color = fillColor;
           paint.style = PaintingStyle.fill;
           canvas.drawPath(shape.path, paint);
+          if (kDebugMode && shape.partId != null) {
+            debugPrint(
+              '[CustomSvgPicture] Drawing fill -> part=${shape.partId}, '
+              'color=$fillColor',
+            );
+          }
         }
       }
 
@@ -172,6 +179,12 @@ class _CustomSvgPainter extends CustomPainter {
         paint.style = PaintingStyle.stroke;
         paint.strokeWidth = shape.strokeWidth!;
         canvas.drawPath(shape.path, paint);
+        if (kDebugMode && shape.partId != null) {
+          debugPrint(
+            '[CustomSvgPicture] Drawing stroke -> part=${shape.partId}, '
+            'color=${shape.strokeColor}, width=${shape.strokeWidth}',
+          );
+        }
       }
     }
 
@@ -491,9 +504,11 @@ class CustomSvgCache {
             '0',
       );
 
-      // Eğer aktif bir parça ID'si varsa onu kullan, yoksa element ID'sine düş
-      final shapePartId =
-          nextPartId ?? (elementId != null && elementId.isNotEmpty ? elementId : null);
+      // Önce elemanın kendi ID'sini kullan; yoksa parent/grup ID'sine düş
+      String? shapePartId = elementId;
+      if (shapePartId == null || shapePartId.isEmpty) {
+        shapePartId = nextPartId;
+      }
 
       shapes.add(
         SvgShape(

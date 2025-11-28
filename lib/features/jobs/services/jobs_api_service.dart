@@ -265,20 +265,24 @@ class JobsApiService {
     required String jobId,
     required String taskId,
     TaskBlockingReason? blockingReason,
+    bool updateBlockingReason = false,
     bool? isTaskAvailable,
+    String? note,
   }) async {
-    await _apiService.patch(
-      '/jobs/$jobId/tasks/$taskId',
-      data: {
-        if (blockingReason != null)
-          'blockingReason': EnumMapper.taskBlockingReasonToBackend(
-            blockingReason,
-          )
-        else
-          'blockingReason': null,
-        if (isTaskAvailable != null) 'isTaskAvailable': isTaskAvailable,
-      },
-    );
+    final data = <String, dynamic>{};
+    if (updateBlockingReason) {
+      data['blockingReason'] = blockingReason != null
+          ? EnumMapper.taskBlockingReasonToBackend(blockingReason)
+          : null;
+    }
+    if (isTaskAvailable != null) {
+      data['isTaskAvailable'] = isTaskAvailable;
+    }
+    if (note != null) {
+      data['note'] = note;
+    }
+
+    await _apiService.patch('/jobs/$jobId/tasks/$taskId', data: data);
   }
 
   /// İş emrini günceller
@@ -341,6 +345,26 @@ class JobsApiService {
           'completionPhotoPath': completionPhotoPath,
       },
     );
+  }
+
+  Future<List<JobNote>> getJobNotes(String jobId) async {
+    final response = await _apiService.get('/jobs/$jobId/notes');
+    final data = response.data as List<dynamic>;
+    return data
+        .map((item) => JobNote.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<JobNote> upsertJobNote({
+    required String jobId,
+    String? taskId,
+    required String content,
+  }) async {
+    final response = await _apiService.put(
+      '/jobs/$jobId/notes',
+      data: {'content': content, if (taskId != null) 'taskId': taskId},
+    );
+    return JobNote.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Download all photos for a job as ZIP

@@ -11,8 +11,6 @@
 /// Not: SVG dosyasındaki parça ID'leri ile VehicleArea enum'ları
 /// arasında eşleştirme yapılır.
 
-import 'dart:ui';
-
 import '../models/job_models.dart';
 import '../models/job_task_draft.dart';
 import '../models/vehicle_area.dart';
@@ -167,12 +165,6 @@ class VehiclePartMapper {
         continue;
       }
 
-      final part = parts.firstWhere(
-        (p) => p.id == partId,
-        orElse: () =>
-            VehiclePart(id: partId, displayName: partId, path: Path()),
-      );
-
       for (final action in actions) {
         if (action == VehicleDamageActions.temizle) {
           continue;
@@ -183,11 +175,14 @@ class VehiclePartMapper {
           continue;
         }
 
+        // Başlangıçta otomatik not eklemiyoruz.
+        // Notlar, kullanıcı tarafından "Veri Ekle" ekranından veya
+        // iş emri oluşturma formundaki not alanlarından girilecek.
         drafts.add(
           JobTaskDraft(
             area: area,
             operationType: operationType,
-            note: '${part.displayName} - $action',
+            note: null,
           ),
         );
       }

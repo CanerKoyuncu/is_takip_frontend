@@ -664,3 +664,43 @@ class JobOrder {
     );
   }
 }
+
+class JobNote {
+  const JobNote({
+    required this.id,
+    required this.jobId,
+    this.taskId,
+    required this.content,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String jobId;
+  final String? taskId;
+  final String content;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  factory JobNote.fromJson(Map<String, dynamic> json) {
+    return JobNote(
+      id: json['id'] as String,
+      jobId: json['jobId'] as String,
+      taskId: json['taskId'] as String?,
+      content: json['content'] as String? ?? '',
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  JobNote copyWith({String? content, DateTime? updatedAt}) {
+    return JobNote(
+      id: id,
+      jobId: jobId,
+      taskId: taskId,
+      content: content ?? this.content,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}

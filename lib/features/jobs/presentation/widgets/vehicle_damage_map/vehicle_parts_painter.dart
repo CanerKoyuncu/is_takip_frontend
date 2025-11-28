@@ -93,12 +93,11 @@ class VehiclePartsPainter extends CustomPainter {
       return const <String>[];
     }
 
-    final normalized = <String>[];
-    for (final action in damageActionPriority) {
-      if (actions.contains(action)) {
-        normalized.add(action);
-      }
-    }
+    final normalized = List<String>.from(actions);
+    normalized.sort(
+      (a, b) =>
+          damageActionPriorityIndex(a).compareTo(damageActionPriorityIndex(b)),
+    );
     return normalized;
   }
 

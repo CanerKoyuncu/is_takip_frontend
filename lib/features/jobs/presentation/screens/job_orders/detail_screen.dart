@@ -16,11 +16,27 @@ import '../../../../../core/widgets/loading_indicator.dart';
 import '../../widgets/vehicle_damage_map.dart';
 import '../../../widgets/task_list_item.dart';
 import '../../../widgets/task_photo_dialog.dart';
+import '../../../../../core/widgets/error_snackbar.dart';
 
-class JobOrderDetailScreen extends StatelessWidget {
+class JobOrderDetailScreen extends StatefulWidget {
   const JobOrderDetailScreen({super.key, required this.jobId});
 
   final String jobId;
+
+  @override
+  State<JobOrderDetailScreen> createState() => _JobOrderDetailScreenState();
+}
+
+class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (!mounted) return;
+      final provider = context.read<JobsProvider>();
+      provider.ensureJobNotesLoaded(widget.jobId);
+    });
+  }
 
   IconData _getVehicleStageIcon(String? stage) {
     switch (stage) {
@@ -66,13 +82,13 @@ class JobOrderDetailScreen extends StatelessWidget {
     return Consumer<JobsProvider>(
       builder: (context, provider, child) {
         final jobsProvider = provider;
-        final job = jobsProvider.jobById(jobId);
+        final job = jobsProvider.jobById(widget.jobId);
 
         // If job not found, try to load from API
         if (job == null) {
           // Trigger load if not already loading
           if (!jobsProvider.isLoading) {
-            Future.microtask(() => jobsProvider.loadJobById(jobId));
+            Future.microtask(() => jobsProvider.loadJobById(widget.jobId));
           }
 
           return Scaffold(
@@ -81,7 +97,7 @@ class JobOrderDetailScreen extends StatelessWidget {
                 ? const LoadingIndicator()
                 : ErrorState(
                     message: jobsProvider.errorMessage ?? 'İş emri bulunamadı',
-                    onRetry: () => jobsProvider.loadJobById(jobId),
+                    onRetry: () => jobsProvider.loadJobById(widget.jobId),
                   ),
           );
         }
@@ -136,7 +152,7 @@ class JobOrderDetailScreen extends StatelessWidget {
                   final messenger = ScaffoldMessenger.of(context);
                   try {
                     final downloadPath = await jobsProvider
-                        .downloadJobPhotosZip(jobId: jobId);
+                        .downloadJobPhotosZip(jobId: widget.jobId);
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(
@@ -169,7 +185,7 @@ class JobOrderDetailScreen extends StatelessWidget {
                   onSelected: (String? value) async {
                     try {
                       await provider.updateJobVehicleStage(
-                        jobId: jobId,
+                        jobId: widget.jobId,
                         vehicleStage: value,
                       );
                       if (context.mounted) {
@@ -216,14 +232,14 @@ class JobOrderDetailScreen extends StatelessWidget {
                   icon: const Icon(Icons.add_circle_outline),
                   tooltip: 'Veri Ekle',
                   onPressed: () {
-                    context.push('/dashboard/job-orders/$jobId/add-data');
+                    context.push('/dashboard/job-orders/${widget.jobId}/add-data');
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.assignment_outlined),
                   tooltip: 'Görev Yönetimi',
                   onPressed: () {
-                    context.push('/dashboard/job-orders/$jobId/tasks');
+                    context.push('/dashboard/job-orders/${widget.jobId}/tasks');
                   },
                 ),
               ],
@@ -383,7 +399,7 @@ class JobOrderDetailScreen extends StatelessWidget {
                                 if (context.mounted) {
                                   try {
                                     await provider.updateJobVehicleStage(
-                                      jobId: jobId,
+                                      jobId: widget.jobId,
                                       vehicleStage: selectedStage,
                                     );
                                     if (context.mounted) {
@@ -480,8 +496,8 @@ class JobOrderDetailScreen extends StatelessWidget {
                             ? () async {
                                 final newStatus = !job.isVehicleAvailable;
                                 try {
-                                  await provider.updateJobVehicleAvailability(
-                                    jobId: jobId,
+                                    await provider.updateJobVehicleAvailability(
+                                      jobId: widget.jobId,
                                     isVehicleAvailable: newStatus,
                                   );
                                   if (context.mounted) {
@@ -652,7 +668,7 @@ class JobOrderDetailScreen extends StatelessWidget {
                                 TaskPhotoDialog.show(
                                   context,
                                   photo: taskWithPhotos.photos.first,
-                                  jobId: jobId,
+                                  jobId: widget.jobId,
                                   taskId: taskWithPhotos.id,
                                   showDownloadButton: true,
                                 );
@@ -694,7 +710,7 @@ class JobOrderDetailScreen extends StatelessWidget {
                           TextButton.icon(
                             onPressed: () {
                               context.push(
-                                '/dashboard/job-orders/$jobId/tasks',
+                                '/dashboard/job-orders/${widget.jobId}/tasks',
                               );
                             },
                             icon: const Icon(Icons.arrow_forward),
@@ -720,17 +736,25 @@ class JobOrderDetailScreen extends StatelessWidget {
                         )
                       else
                         ...job.tasks.map(
-                          (task) => TaskListItem(
-                            task: task,
-                            jobId: jobId,
-                            showActionButtons: true,
-                            onTap: () {
-                              // Görev yönetimine git
-                              context.push(
-                                '/dashboard/job-orders/$jobId/tasks',
-                              );
-                            },
-                          ),
+                          (task) {
+                            final overrideNote = provider
+                                .taskNoteForJob(widget.jobId, task.id)
+                                ?.content;
+                            return TaskListItem(
+                              task: task,
+                              jobId: widget.jobId,
+                              showActionButtons: true,
+                              showPhotos: true,
+                              allowInlineNoteEdit: true,
+                              noteOverride: overrideNote,
+                              onTap: () {
+                                // Görev yönetimine git
+                                context.push(
+                                  '/dashboard/job-orders/${widget.jobId}/tasks',
+                                );
+                              },
+                            );
+                          },
                         ),
                     ],
                   ),
@@ -738,28 +762,22 @@ class JobOrderDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // General Notes
-              if (job.generalNotes != null && job.generalNotes!.isNotEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Genel Notlar',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          job.generalNotes!,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
+              // General Notes (view & edit inline)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _GeneralNotesSection(jobId: widget.jobId),
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Task Notes Overview
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _TaskNotesSection(job: job),
+                ),
+              ),
               const SizedBox(height: 16),
 
               // Created Date
@@ -786,6 +804,229 @@ class JobOrderDetailScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _GeneralNotesSection extends StatefulWidget {
+  const _GeneralNotesSection({required this.jobId});
+
+  final String jobId;
+
+  @override
+  State<_GeneralNotesSection> createState() => _GeneralNotesSectionState();
+}
+
+class _GeneralNotesSectionState extends State<_GeneralNotesSection> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final provider = context.read<JobsProvider>();
+    setState(() => _isSaving = true);
+    try {
+      await provider.upsertJobNote(
+        jobId: widget.jobId,
+        content: _controller.text.trim(),
+      );
+      if (mounted) {
+        ErrorSnackbar.showSuccess(context, 'Genel notlar güncellendi');
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorSnackbar.showError(
+          context,
+          'Genel notlar güncellenirken hata: $e',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  void _syncController(String? notes) {
+    final text = notes?.trim() ?? '';
+    if (!_focusNode.hasFocus && !_isSaving && _controller.text != text) {
+      _controller.text = text;
+      _controller.selection = TextSelection.collapsed(offset: text.length);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Consumer<JobsProvider>(
+      builder: (context, provider, child) {
+        final generalNote = provider.generalNoteForJob(widget.jobId);
+        final job = provider.jobById(widget.jobId);
+        _syncController(generalNote?.content ?? job?.generalNotes);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Genel Notlar',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Bu iş emri için genel notlar...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _isSaving ? null : _save,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
+                label: Text(_isSaving ? 'Kaydediliyor...' : 'Kaydet'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TaskNotesSection extends StatelessWidget {
+  const _TaskNotesSection({required this.job});
+
+  final JobOrder job;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final provider = context.watch<JobsProvider>();
+    final notes = provider.jobNotesForJob(job.id);
+    final taskNotes = notes.where((note) => note.taskId != null).toList();
+    final taskMap = {
+      for (final task in job.tasks) task.id: task,
+    };
+    final legacyList = job.tasks
+        .where(
+          (task) =>
+              (task.note?.trim().isNotEmpty ?? false) &&
+              taskNotes.every(
+                (note) => note.taskId == null || note.taskId != task.id,
+              ),
+        )
+        .toList();
+    final List<Widget> noteWidgets = [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Görev Notları',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (taskNotes.isEmpty && legacyList.isEmpty)
+          Text(
+            'Henüz görev notu eklenmemiş.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          )
+        else
+          Column(
+            children: () {
+              for (var i = 0; i < taskNotes.length; i++) {
+                final note = taskNotes[i];
+                final task = note.taskId != null ? taskMap[note.taskId] : null;
+                noteWidgets.add(
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.note_alt_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: Text(
+                      task != null
+                          ? '${task.area.label} - ${task.operationType.label}'
+                          : 'Görev Notu',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      note.content,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                );
+                final hasMore =
+                    i < taskNotes.length - 1 || legacyList.isNotEmpty;
+                if (hasMore) {
+                  noteWidgets.add(const Divider(height: 12, thickness: 0.5));
+                }
+              }
+              for (var i = 0; i < legacyList.length; i++) {
+                final task = legacyList[i];
+                noteWidgets.add(
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.history_edu_outlined,
+                      color: theme.colorScheme.secondary,
+                    ),
+                    title: Text(
+                      '${task.area.label} - ${task.operationType.label}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      task.note ?? '',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                );
+                if (i < legacyList.length - 1) {
+                  noteWidgets.add(const Divider(height: 12, thickness: 0.5));
+                }
+              }
+              return noteWidgets;
+            }(),
+          ),
+      ],
     );
   }
 }

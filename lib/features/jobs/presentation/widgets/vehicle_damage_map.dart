@@ -188,9 +188,22 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
                     // Single action: use the action color
                     final color = _baseColorForActions(normalizedActions);
                     partColorMap[part.id] = color;
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[VehicleDamageMap] Fill color assigned -> '
+                        'part=${part.id}, action=${normalizedActions.first}, '
+                        'color=$color',
+                      );
+                    }
                   } else if (normalizedActions.length > 1) {
                     // Multiple actions: use striped pattern as fill
                     partActionsMap[part.id] = normalizedActions;
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[VehicleDamageMap] Stripe fill assigned -> '
+                        'part=${part.id}, actions=$normalizedActions',
+                      );
+                    }
                   }
                 }
 
@@ -445,12 +458,11 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
       return const <String>[];
     }
 
-    final normalized = <String>[];
-    for (final action in damageActionPriority) {
-      if (actions.contains(action)) {
-        normalized.add(action);
-      }
-    }
+    final normalized = List<String>.from(actions);
+    normalized.sort(
+      (a, b) =>
+          damageActionPriorityIndex(a).compareTo(damageActionPriorityIndex(b)),
+    );
     return normalized;
   }
 

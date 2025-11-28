@@ -25,22 +25,22 @@ const RESOURCES = {"canvaskit/chromium/canvaskit.js": "5e27aae346eee469027c80af0
 "index.html": "8135b56605e64e4961ad9707ed5a26d9",
 "/": "8135b56605e64e4961ad9707ed5a26d9",
 "version.json": "48fc7f6b3cc8cd3b854d016497401fb6",
-"main.dart.js": "0d54b0dc6f258dd5477da8047c347eed",
+"main.dart.js": "37958b35af361ddb821833adc3432086",
 "assets/NOTICES": "b7252296f3aeb341015d527ef128609f",
 "assets/FontManifest.json": "dc3d03800ccca4601324923c0b1d6d57",
 "assets/assets/images/vehicle_top.png": "00c42a26184ef82ab1d315e3b90c49ce",
-"assets/assets/car-cutout-grouped.svg": "19742c0047dcc3a71c6197926382de15",
+"assets/assets/car-cutout-grouped.svg": "b8f52b90b85ccb7c56063e2e1006fd50",
 "assets/assets/fonts/NotoSans.ttf": "b72e420edb95cdf06e6e0a27bc0d964d",
 "assets/assets/fonts/README.md": "70ce125c655019e444f56e338f934fbc",
 "assets/assets/car-cutout.svg": "e760fd093c0a133694622f45a655159e",
 "assets/assets/logo.png": "30d932053f37ed72236842e75ad194ab",
 "assets/AssetManifest.bin.json": "0438bb0c86c9d5c18b0c52526ff18d33",
-"assets/fonts/MaterialIcons-Regular.otf": "5e9c050e5107909a3bf8d30ee3ec10bb",
+"assets/fonts/MaterialIcons-Regular.otf": "ac276d21b1d674749527b3f4ba0e24e5",
 "assets/AssetManifest.json": "22d85b41d719084416adedfba6043d47",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/AssetManifest.bin": "b52bea2f42068f72b835b9260379490c",
 "assets/packages/cupertino_icons/assets/CupertinoIcons.ttf": "33b7d9392238c04c131b6ce224e13711",
-"flutter_bootstrap.js": "06e0b9a1c36f38532e7dbd64a34e257a"};
+"flutter_bootstrap.js": "d3334d1e1f4a3172cb72c6ed89480175"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",

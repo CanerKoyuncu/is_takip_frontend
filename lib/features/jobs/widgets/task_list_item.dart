@@ -38,6 +38,7 @@ class TaskListItem extends StatelessWidget {
     this.showPauseButton = false,
     this.noteOverride,
     this.allowInlineNoteEdit = false,
+    this.onStatusChanged,
   });
 
   /// Görev
@@ -79,6 +80,11 @@ class TaskListItem extends StatelessWidget {
 
   /// Harici not değeri (ayrı note tablosu için).
   final String? noteOverride;
+
+  /// Görev durumunda değişiklik olduğunda (başlat/duraklat/tamamla/devam ettir) çağrılır.
+  ///
+  /// Özellikle kiosk modunda, görev listelerini otomatik yenilemek için kullanılabilir.
+  final Future<void> Function()? onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -210,11 +216,11 @@ class TaskListItem extends StatelessWidget {
                     ),
                     if (noteText != null && noteText.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text(
-                        noteText,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      _ChecklistNoteView(
+                        jobId: jobId,
+                        taskId: task.id,
+                        text: noteText,
+                        enabled: allowInlineNoteEdit,
                       ),
                     ],
                     if (allowInlineNoteEdit) ...[
@@ -444,6 +450,9 @@ class TaskListItem extends StatelessWidget {
           context,
           assignedWorkerId == null ? 'Görev başlatıldı' : 'Görev başlatıldı',
         );
+        if (onStatusChanged != null) {
+          await onStatusChanged!();
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -471,6 +480,9 @@ class TaskListItem extends StatelessWidget {
         if (context.mounted) {
           LoadingSnackbar.hide(context);
           ErrorSnackbar.showSuccess(context, 'Görev tamamlandı');
+          if (onStatusChanged != null) {
+            await onStatusChanged!();
+          }
         }
       } catch (e) {
         if (context.mounted) {
@@ -506,6 +518,9 @@ class TaskListItem extends StatelessWidget {
           context,
           'Görev duraklatıldı',
         );
+        if (onStatusChanged != null) {
+          await onStatusChanged!();
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -654,11 +669,151 @@ class TaskListItem extends StatelessWidget {
       if (context.mounted) {
         LoadingSnackbar.hide(context);
         ErrorSnackbar.showSuccess(context, 'Görev devam ettirildi');
+        if (onStatusChanged != null) {
+          await onStatusChanged!();
+        }
       }
     } catch (e) {
       if (context.mounted) {
         LoadingSnackbar.hide(context);
         ErrorSnackbar.showError(context, 'Görev devam ettirilirken hata: $e');
+      }
+    }
+  }
+
+  // ...
+}
+
+/// Not içindeki `- [ ]` / `- [x]` satırlarını tiklenebilir checklist olarak gösterir.
+class _ChecklistNoteView extends StatelessWidget {
+  const _ChecklistNoteView({
+    required this.jobId,
+    required this.taskId,
+    required this.text,
+    required this.enabled,
+  });
+
+  final String jobId;
+  final String taskId;
+  final String text;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lines = text.split('\n');
+
+    // Satır bazlı widget listesi oluştur
+    final children = <Widget>[];
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final trimmed = line.trimLeft();
+
+      final match = RegExp(r'^-\s*\[( |x|X)\]\s*(.*)$').firstMatch(trimmed);
+      if (match != null) {
+        final checked = match.group(1)!.toLowerCase() == 'x';
+        final label = match.group(2) ?? '';
+
+        children.add(
+          InkWell(
+            onTap: enabled
+                ? () => _toggleChecklistItem(context, lines, i, checked)
+                : null,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: checked,
+                  onChanged: enabled
+                      ? (_) => _toggleChecklistItem(context, lines, i, checked)
+                      : null,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        if (line.isEmpty && children.isNotEmpty) {
+          children.add(const SizedBox(height: 2));
+        } else if (line.isNotEmpty) {
+          children.add(
+            Text(
+              line,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    if (children.isEmpty) {
+      return Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+
+  Future<void> _toggleChecklistItem(
+    BuildContext context,
+    List<String> lines,
+    int index,
+    bool wasChecked,
+  ) async {
+    final line = lines[index];
+    final leadingSpaces =
+        line.substring(0, line.length - line.trimLeft().length);
+    final trimmed = line.trimLeft();
+
+    final newPrefix = wasChecked ? '- [ ] ' : '- [x] ';
+    final afterPrefix =
+        trimmed.replaceFirst(RegExp(r'^-\s*\[( |x|X)\]\s*'), '');
+    final newLine = '$leadingSpaces$newPrefix$afterPrefix';
+
+    lines[index] = newLine;
+    final newText = lines.join('\n');
+
+    final provider = context.read<JobsProvider>();
+    try {
+      LoadingSnackbar.show(
+        context,
+        message: 'Kontrol listesi güncelleniyor...',
+      );
+      await provider.upsertJobNote(
+        jobId: jobId,
+        taskId: taskId,
+        content: newText,
+      );
+      if (context.mounted) {
+        LoadingSnackbar.hide(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        LoadingSnackbar.hide(context);
+        ErrorSnackbar.showError(
+          context,
+          'Kontrol listesi güncellenirken hata: $e',
+        );
       }
     }
   }

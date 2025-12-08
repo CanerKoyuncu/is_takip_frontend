@@ -40,8 +40,6 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
   final Map<String, TextEditingController> _taskNoteControllers =
       {}; // draftKey -> controller
   final TextEditingController _partSearchController = TextEditingController();
-  final Map<String, VehicleSvgPartConfig> _allPartConfigs =
-      SvgVehiclePartLoader.partConfigs;
   static const List<String> _partSectionOrder = <String>[
     'Ön',
     'Sol',
@@ -162,30 +160,12 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
         final noteController = _taskNoteControllers[draftKey];
         final note = noteController?.text.trim();
 
-        // Combine operation-specific notes with task note
+        // Only use task-specific notes (not category notes)
         String? combinedNote = draft.note;
         if (note != null && note.isNotEmpty) {
           combinedNote = combinedNote != null && combinedNote.isNotEmpty
               ? '$combinedNote\n\n$note'
               : note;
-        }
-
-        // Add operation-specific notes
-        final category = draft.operationType.category;
-        final categoryController = category == TaskCategory.boya
-            ? _paintNotesController
-            : _bodyRepairNotesController;
-        final noteText = categoryController.text.trim();
-        if (noteText.isNotEmpty) {
-          final categoryNote = _formatCategoryNote(
-            category: category,
-            area: draft.area,
-            operationType: draft.operationType,
-            baseNote: noteText,
-          );
-          combinedNote = combinedNote != null && combinedNote.isNotEmpty
-              ? '$combinedNote\n\n$categoryNote'
-              : categoryNote;
         }
 
         return draft.copyWith(photoPaths: photos, note: combinedNote);
@@ -207,13 +187,32 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
         model: _modelController.text.trim(),
       );
 
-      // Combine general notes with operation-specific notes
+      // Combine general notes with operation-specific notes (Boya, Kaporta, Diğer)
       String? generalNotes = _generalNotesController.text.trim();
       if (generalNotes.isEmpty) generalNotes = null;
 
+      // Add Boya notes if exists
+      final paintNotes = _paintNotesController.text.trim();
+      if (paintNotes.isNotEmpty) {
+        final paintNote = 'Boya Notları:\n$paintNotes';
+        generalNotes = generalNotes != null
+            ? '$generalNotes\n\n$paintNote'
+            : paintNote;
+      }
+
+      // Add Kaporta notes if exists
+      final bodyRepairNotes = _bodyRepairNotesController.text.trim();
+      if (bodyRepairNotes.isNotEmpty) {
+        final bodyRepairNote = 'Kaporta Notları:\n$bodyRepairNotes';
+        generalNotes = generalNotes != null
+            ? '$generalNotes\n\n$bodyRepairNote'
+            : bodyRepairNote;
+      }
+
       // Add other notes if exists
-      if (_otherNotesController.text.trim().isNotEmpty) {
-        final otherNote = 'Diğer Notlar: ${_otherNotesController.text.trim()}';
+      final otherNotes = _otherNotesController.text.trim();
+      if (otherNotes.isNotEmpty) {
+        final otherNote = 'Diğer Notlar:\n$otherNotes';
         generalNotes = generalNotes != null
             ? '$generalNotes\n\n$otherNote'
             : otherNote;
@@ -279,24 +278,23 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
   }
 
   List<_PartListItem> _filteredParts() {
-    final partMap = {
-      for (final part in (_parts ?? const <VehiclePart>[])) part.id: part,
-    };
-    final configs = _allPartConfigs.values.toList()
-      ..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      );
-
+    final allParts = _parts ?? const <VehiclePart>[];
     final query = _partSearchQuery.trim().toLowerCase();
-    final items = configs.map((config) {
-      final svgPart = partMap[config.id];
-      return _PartListItem(
-        id: config.id,
-        displayName: config.displayName,
-        part: svgPart,
-      );
-    }).toList();
+    final items =
+        allParts
+            .map(
+              (part) => _PartListItem(
+                id: part.id,
+                displayName: part.displayName,
+                part: part,
+              ),
+            )
+            .toList()
+          ..sort(
+            (a, b) => a.displayName.toLowerCase().compareTo(
+              b.displayName.toLowerCase(),
+            ),
+          );
 
     if (query.isEmpty) {
       return items;
@@ -407,33 +405,6 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
         _selectedPartId = null;
       }
     });
-  }
-
-  String _formatCategoryNote({
-    required TaskCategory category,
-    required VehicleArea area,
-    required JobOperationType operationType,
-    required String baseNote,
-  }) {
-    final prefix = TaskCategoryStyles.noteTitle(category);
-    final header =
-        '$prefix · ${area.label} (${operationType.label.toLowerCase()})';
-    final normalizedLines = baseNote
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .toList();
-
-    if (normalizedLines.isEmpty) {
-      return header;
-    }
-
-    if (normalizedLines.length == 1) {
-      return '$header\n${normalizedLines.first}';
-    }
-
-    final bullets = normalizedLines.map((line) => '• $line').join('\n');
-    return '$header\n$bullets';
   }
 
   @override

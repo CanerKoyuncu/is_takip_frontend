@@ -34,10 +34,6 @@ class SvgVehiclePartLoader {
   // Singleton instance
   static final SvgVehiclePartLoader instance = SvgVehiclePartLoader._();
 
-  /// Config list exposed for UI usage (read-only).
-  static Map<String, VehicleSvgPartConfig> get partConfigs =>
-      Map.unmodifiable(_defaultPartConfigs);
-
   // Cache - aynı dosya tekrar yüklenmez
   final Map<String, Future<List<VehiclePart>>> _cache = {};
 
@@ -52,17 +48,13 @@ class SvgVehiclePartLoader {
   /// Döner: `Future<List<VehiclePart>>` - Yüklenen parçalar listesi
   Future<List<VehiclePart>> load({
     String assetName = 'assets/car-cutout-grouped.svg',
-    Map<String, VehicleSvgPartConfig> partConfigs = _defaultPartConfigs,
   }) {
     // Cache'de varsa döndür, yoksa yükle ve cache'e ekle
     return _cache.putIfAbsent(assetName, () async {
       // SVG dosyasını assets'den yükle
       final rawSvg = await rootBundle.loadString(assetName);
       // SVG'yi parse et ve VehiclePart listesine dönüştür
-      return _SvgVehiclePartParser(
-        rawSvg: rawSvg,
-        partConfigs: partConfigs,
-      ).parse();
+      return _SvgVehiclePartParser(rawSvg: rawSvg).parse();
     });
   }
 }
@@ -82,6 +74,10 @@ class VehicleSvgPartConfig {
   final bool allowBoundsHitTest;
 }
 
+// NOTE: Bu statik map artık kullanılmıyor; dinamik moda geçildi.
+// Gelecekte tamamen kaldırılabilir, şimdilik yalnızca referans için bırakılmıştı.
+// Lint uyarılarını temizlemek için şimdilik devre dışı bırakıyoruz.
+/*
 const Map<String, VehicleSvgPartConfig> _defaultPartConfigs = {
   // Core body
   'kaput': VehicleSvgPartConfig(id: 'kaput', displayName: 'Kaput'),
@@ -220,6 +216,28 @@ const Map<String, VehicleSvgPartConfig> _defaultPartConfigs = {
     allowBoundsHitTest: true,
   ),
 
+  // Wheels / rims (jantlar)
+  'sol-arka-jant': VehicleSvgPartConfig(
+    id: 'sol-arka-jant',
+    displayName: 'Sol Arka Jant',
+    allowBoundsHitTest: true,
+  ),
+  'sag-arka-jant': VehicleSvgPartConfig(
+    id: 'sag-arka-jant',
+    displayName: 'Sağ Arka Jant',
+    allowBoundsHitTest: true,
+  ),
+  'sag-on-jant': VehicleSvgPartConfig(
+    id: 'sag-on-jant',
+    displayName: 'Sağ Ön Jant',
+    allowBoundsHitTest: true,
+  ),
+  'sol-on-jant': VehicleSvgPartConfig(
+    id: 'sol-on-jant',
+    displayName: 'Sol Ön Jant',
+    allowBoundsHitTest: true,
+  ),
+
   // Roof & glass — placed last so they win hit-tests against body panels
   'tavan': VehicleSvgPartConfig(id: 'tavan', displayName: 'Tavan'),
   // Sunroof'u tavan'dan sonra tanımlayarak (map'in sonuna taşıyıp)
@@ -269,14 +287,27 @@ const Map<String, VehicleSvgPartConfig> _defaultPartConfigs = {
     displayName: 'Sağ Arka Kapı Kolu',
   ),
 };
+*/
 
 class _SvgVehiclePartParser {
-  _SvgVehiclePartParser({required this.rawSvg, required this.partConfigs});
+  _SvgVehiclePartParser({required this.rawSvg});
 
   final String rawSvg;
-  final Map<String, VehicleSvgPartConfig> partConfigs;
 
   final Map<String, Path> _partPaths = {};
+
+  String _displayNameFromId(String id) {
+    if (id.isEmpty) return id;
+    // id: 'sol-arka-kapi-kolu' -> 'Sol Arka Kapi Kolu'
+    final parts = id
+        .split(RegExp(r'[-_]+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return id;
+    String capitalize(String s) =>
+        s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+    return parts.map(capitalize).join(' ');
+  }
 
   List<VehiclePart> parse() {
     try {
@@ -291,43 +322,36 @@ class _SvgVehiclePartParser {
 
       final parts = <VehiclePart>[];
 
-      for (final config in partConfigs.values) {
-        final path = _partPaths[config.id];
-        if (path == null) {
-          debugPrint('[SVG Parser] Warning: No path found for ${config.id}');
-          continue;
-        }
-
+      // SVG içindeki id'lere göre dinamik olarak parça üret
+      _partPaths.forEach((id, path) {
         final metrics = path.computeMetrics().iterator;
         if (!metrics.moveNext()) {
-          debugPrint('[SVG Parser] Warning: Empty path for ${config.id}');
-          continue;
+          debugPrint('[SVG Parser] Warning: Empty path for $id');
+          return;
         }
 
-        // Verify path has valid bounds
+        // Geçerli bounds kontrolü
         final bounds = path.getBounds();
         if (bounds.isEmpty || bounds.width == 0 || bounds.height == 0) {
-          debugPrint(
-            '[SVG Parser] Warning: Invalid bounds for ${config.id}: $bounds',
-          );
-          continue;
+          debugPrint('[SVG Parser] Warning: Invalid bounds for $id: $bounds');
+          return;
         }
 
+        final displayName = _displayNameFromId(id);
+
         parts.add(
-          VehiclePart(
-            id: config.id,
-            displayName: config.displayName,
-            path: Path.from(path),
-            allowBoundsHitTest: config.allowBoundsHitTest,
-          ),
+          VehiclePart(id: id, displayName: displayName, path: Path.from(path)),
         );
 
         debugPrint(
-          '[SVG Parser] Loaded part: ${config.id} (${config.displayName}), bounds: $bounds',
+          '[SVG Parser] Loaded part: $id ($displayName), bounds: $bounds',
         );
-      }
+      });
 
-      debugPrint('[SVG Parser] Successfully loaded ${parts.length} parts');
+      debugPrint(
+        '[SVG Parser] Successfully loaded ${parts.length} parts '
+        'from dynamic SVG ids',
+      );
       return parts;
     } catch (e, stackTrace) {
       debugPrint('[SVG Parser] Error parsing SVG: $e');
@@ -342,14 +366,19 @@ class _SvgVehiclePartParser {
     String? activePartId,
   ) {
     final elementId = element.getAttribute('id');
-    final nextPartId = partConfigs.containsKey(elementId)
+    // Eğer bu elemanın bir ID'si varsa, bunu aktif parça ID'si olarak kullan,
+    // yoksa parent/grup ID'sini devam ettir.
+    final nextPartId = (elementId != null && elementId.isNotEmpty)
         ? elementId
         : activePartId;
 
     final combinedTransform = vm.Matrix4.copy(transform)
       ..multiply(_parseTransform(element.getAttribute('transform')));
 
-    final targetPartId = partConfigs.containsKey(elementId)
+    // Path/rect/circle için kullanılacak gerçek parça ID'si:
+    // - Önce elemanın kendi ID'si
+    // - Yoksa parent/grup ID'si
+    final targetPartId = (elementId != null && elementId.isNotEmpty)
         ? elementId
         : nextPartId;
 

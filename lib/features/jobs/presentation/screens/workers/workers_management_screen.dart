@@ -64,6 +64,7 @@ class _WorkersManagementScreenState extends State<WorkersManagementScreen> {
           username: result['username'] as String,
           fullName: result['fullName'] as String?,
           role: result['role'] as String?,
+          specialization: result['specialization'] as String?,
         );
         if (mounted) {
           LoadingSnackbar.hide(context);
@@ -120,6 +121,7 @@ class _WorkersManagementScreenState extends State<WorkersManagementScreen> {
           username: result['username'] as String?,
           fullName: result['fullName'] as String?,
           role: result['role'] as String?,
+          specialization: result['specialization'] as String?,
         );
         if (mounted) {
           LoadingSnackbar.hide(context);
@@ -417,6 +419,7 @@ class _WorkerDialogState extends State<_WorkerDialog> {
   late final TextEditingController _usernameController;
   late final TextEditingController _fullNameController;
   String? _selectedRole;
+  String? _selectedSpecialization;
   final FocusNode _usernameFocus = FocusNode();
   final FocusNode _fullNameFocus = FocusNode();
 
@@ -426,6 +429,7 @@ class _WorkerDialogState extends State<_WorkerDialog> {
     _usernameController = TextEditingController(text: widget.worker?.username);
     _fullNameController = TextEditingController(text: widget.worker?.fullName);
     _selectedRole = widget.worker?.role ?? 'worker';
+    _selectedSpecialization = widget.worker?.specialization;
   }
 
   @override
@@ -448,6 +452,9 @@ class _WorkerDialogState extends State<_WorkerDialog> {
             ? null
             : _fullNameController.text.trim(),
         'role': _selectedRole,
+        'specialization': _selectedRole == 'worker'
+            ? _selectedSpecialization
+            : null,
       });
     }
   }
@@ -626,6 +633,42 @@ class _WorkerDialogState extends State<_WorkerDialog> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+              // Usta Bölümü (sadece worker rolü için)
+              if (_selectedRole == 'worker')
+                DropdownButtonFormField<String>(
+                  value: _selectedSpecialization,
+                  decoration: const InputDecoration(
+                    labelText: 'Usta Bölümü',
+                    helperText: 'Kaporta / Boya / Her ikisi',
+                    prefixIcon: Icon(Icons.build_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'kaporta',
+                      child: Text('Kaporta Ustası'),
+                    ),
+                    DropdownMenuItem(value: 'boya', child: Text('Boya Ustası')),
+                    DropdownMenuItem(
+                      value: 'both',
+                      child: Text('Kaporta + Boya (Her ikisi)'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSpecialization = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (_selectedRole == 'worker') {
+                      if (value == null || value.isEmpty) {
+                        return 'Usta bölümü seçilmelidir';
+                      }
+                    }
+                    return null;
+                  },
+                ),
               // Rol Açıklaması
               if (_selectedRole != null) ...[
                 const SizedBox(height: 12),

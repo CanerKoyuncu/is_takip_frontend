@@ -318,6 +318,9 @@ class _KioskScreenState extends State<KioskScreen> {
                   showDetailedDialog: false,
                   assignedWorkerId:
                       null, // Görev başlatılınca usta seçilecek
+                  // Kiosk modunda görev başlatma/duraklatma/tamamlama sonrası
+                  // listeyi otomatik yenile
+                  onStatusChanged: _loadTasks,
                 ),
               ],
             ),

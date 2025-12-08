@@ -232,7 +232,9 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                   icon: const Icon(Icons.add_circle_outline),
                   tooltip: 'Veri Ekle',
                   onPressed: () {
-                    context.push('/dashboard/job-orders/${widget.jobId}/add-data');
+                    context.push(
+                      '/dashboard/job-orders/${widget.jobId}/add-data',
+                    );
                   },
                 ),
                 IconButton(
@@ -246,6 +248,7 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
             ],
           ),
           body: ListView(
+            key: PageStorageKey('job-order-detail-${job.id}'),
             padding: const EdgeInsets.all(16),
             children: [
               // Status Card
@@ -496,8 +499,8 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                             ? () async {
                                 final newStatus = !job.isVehicleAvailable;
                                 try {
-                                    await provider.updateJobVehicleAvailability(
-                                      jobId: widget.jobId,
+                                  await provider.updateJobVehicleAvailability(
+                                    jobId: widget.jobId,
                                     isVehicleAvailable: newStatus,
                                   );
                                   if (context.mounted) {
@@ -735,27 +738,25 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                           ),
                         )
                       else
-                        ...job.tasks.map(
-                          (task) {
-                            final overrideNote = provider
-                                .taskNoteForJob(widget.jobId, task.id)
-                                ?.content;
-                            return TaskListItem(
-                              task: task,
-                              jobId: widget.jobId,
-                              showActionButtons: true,
-                              showPhotos: true,
-                              allowInlineNoteEdit: true,
-                              noteOverride: overrideNote,
-                              onTap: () {
-                                // Görev yönetimine git
-                                context.push(
-                                  '/dashboard/job-orders/${widget.jobId}/tasks',
-                                );
-                              },
-                            );
-                          },
-                        ),
+                        ...job.tasks.map((task) {
+                          final overrideNote = provider
+                              .taskNoteForJob(widget.jobId, task.id)
+                              ?.content;
+                          return TaskListItem(
+                            task: task,
+                            jobId: widget.jobId,
+                            showActionButtons: true,
+                            showPhotos: true,
+                            allowInlineNoteEdit: true,
+                            noteOverride: overrideNote,
+                            onTap: () {
+                              // Görev yönetimine git
+                              context.push(
+                                '/dashboard/job-orders/${widget.jobId}/tasks',
+                              );
+                            },
+                          );
+                        }),
                     ],
                   ),
                 ),
@@ -767,6 +768,15 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: _GeneralNotesSection(jobId: widget.jobId),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Araçta Çalışan Ustalar Özeti
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _WorkerSummarySection(job: job),
                 ),
               ),
               const SizedBox(height: 16),
@@ -872,11 +882,79 @@ class _GeneralNotesSectionState extends State<_GeneralNotesSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isAdmin = context.watch<AuthProvider>().isAdmin;
     return Consumer<JobsProvider>(
       builder: (context, provider, child) {
         final generalNote = provider.generalNoteForJob(widget.jobId);
         final job = provider.jobById(widget.jobId);
-        _syncController(generalNote?.content ?? job?.generalNotes);
+        final rawNotes = (generalNote?.content ?? job?.generalNotes)?.trim();
+        _syncController(rawNotes);
+
+        // Ayrı başlıklarla göstermek için parçalara ayır
+        String? boyaNotes;
+        String? kaportaNotes;
+        String? digerNotes;
+        String? otherGeneral;
+
+        if (rawNotes != null && rawNotes.isNotEmpty) {
+          // Bilinen başlıkları satır bazında yakala
+          final lines = rawNotes.split('\n');
+          String? currentSection;
+          final bufferMap = <String, List<String>>{
+            'boya': [],
+            'kaporta': [],
+            'diger': [],
+            'other': [],
+          };
+
+          for (final line in lines) {
+            final trimmed = line.trim();
+            if (trimmed.isEmpty) {
+              // Boş satırları mevcut bölüme ekle
+              if (currentSection != null) {
+                bufferMap[currentSection]!.add('');
+              } else {
+                bufferMap['other']!.add('');
+              }
+              continue;
+            }
+
+            if (trimmed.startsWith('Boya Notları')) {
+              currentSection = 'boya';
+              continue;
+            }
+            if (trimmed.startsWith('Kaporta Notları')) {
+              currentSection = 'kaporta';
+              continue;
+            }
+            if (trimmed.startsWith('Diğer Notlar')) {
+              currentSection = 'diger';
+              continue;
+            }
+
+            // İçeriği aktif bölüme veya diğerine ekle
+            if (currentSection != null) {
+              bufferMap[currentSection]!.add(trimmed);
+            } else {
+              bufferMap['other']!.add(trimmed);
+            }
+          }
+
+          String _join(List<String> items) {
+            final text = items.join('\n').trim();
+            return text.isEmpty ? '' : text;
+          }
+
+          final boyaText = _join(bufferMap['boya']!);
+          final kaportaText = _join(bufferMap['kaporta']!);
+          final digerText = _join(bufferMap['diger']!);
+          final otherText = _join(bufferMap['other']!);
+
+          boyaNotes = boyaText.isNotEmpty ? boyaText : null;
+          kaportaNotes = kaportaText.isNotEmpty ? kaportaText : null;
+          digerNotes = digerText.isNotEmpty ? digerText : null;
+          otherGeneral = otherText.isNotEmpty ? otherText : null;
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -888,30 +966,118 @@ class _GeneralNotesSectionState extends State<_GeneralNotesSection> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Bu iş emri için genel notlar...',
-                border: OutlineInputBorder(),
+            if (isAdmin) ...[
+              TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  hintText:
+                      'Bu iş emri için genel notlar...\n(Boya / Kaporta / Diğer notlar da buraya kaydedilir)',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: _isSaving ? null : _save,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save),
-                label: Text(_isSaving ? 'Kaydediliyor...' : 'Kaydet'),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: _isSaving ? null : _save,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(_isSaving ? 'Kaydediliyor...' : 'Kaydet'),
+                ),
               ),
-            ),
+            ] else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (otherGeneral != null) ...[
+                      SelectableText(
+                        otherGeneral,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      if (boyaNotes != null ||
+                          kaportaNotes != null ||
+                          digerNotes != null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Divider(height: 16, thickness: 0.5),
+                        ),
+                    ],
+                    if (boyaNotes != null) ...[
+                      Text(
+                        'Boya Notları',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(
+                        boyaNotes,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      if (kaportaNotes != null || digerNotes != null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Divider(height: 16, thickness: 0.5),
+                        ),
+                    ],
+                    if (kaportaNotes != null) ...[
+                      Text(
+                        'Kaporta Notları',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(
+                        kaportaNotes,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      if (digerNotes != null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Divider(height: 16, thickness: 0.5),
+                        ),
+                    ],
+                    if (digerNotes != null) ...[
+                      Text(
+                        'Diğer Notlar',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(
+                        digerNotes,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                    if (otherGeneral == null &&
+                        boyaNotes == null &&
+                        kaportaNotes == null &&
+                        digerNotes == null)
+                      SelectableText(
+                        'Genel not bulunmuyor.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },
@@ -930,19 +1096,28 @@ class _TaskNotesSection extends StatelessWidget {
     final provider = context.watch<JobsProvider>();
     final notes = provider.jobNotesForJob(job.id);
     final taskNotes = notes.where((note) => note.taskId != null).toList();
-    final taskMap = {
-      for (final task in job.tasks) task.id: task,
-    };
-    final legacyList = job.tasks
-        .where(
-          (task) =>
-              (task.note?.trim().isNotEmpty ?? false) &&
-              taskNotes.every(
-                (note) => note.taskId == null || note.taskId != task.id,
-              ),
-        )
+
+    // Görev bazında notları grupla
+    final Map<String, List<String>> taskNotesMap = {};
+
+    // Önce görevlerdeki notları ekle (iş emri oluşturulurken girilen notlar)
+    for (final task in job.tasks) {
+      if (task.note != null && task.note!.isNotEmpty) {
+        taskNotesMap.putIfAbsent(task.id, () => []).add(task.note!);
+      }
+    }
+
+    // Sonra JobNote tablosundaki notları ekle (sonradan eklenen notlar)
+    for (final note in taskNotes) {
+      if (note.taskId != null) {
+        taskNotesMap.putIfAbsent(note.taskId!, () => []).add(note.content);
+      }
+    }
+
+    // Sadece notu olan görevleri filtrele
+    final tasksWithNotes = job.tasks
+        .where((task) => taskNotesMap.containsKey(task.id))
         .toList();
-    final List<Widget> noteWidgets = [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -954,7 +1129,7 @@ class _TaskNotesSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        if (taskNotes.isEmpty && legacyList.isEmpty)
+        if (tasksWithNotes.isEmpty)
           Text(
             'Henüz görev notu eklenmemiş.',
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -963,69 +1138,186 @@ class _TaskNotesSection extends StatelessWidget {
           )
         else
           Column(
-            children: () {
-              for (var i = 0; i < taskNotes.length; i++) {
-                final note = taskNotes[i];
-                final task = note.taskId != null ? taskMap[note.taskId] : null;
-                noteWidgets.add(
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.note_alt_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                    title: Text(
-                      task != null
-                          ? '${task.area.label} - ${task.operationType.label}'
-                          : 'Görev Notu',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+            children: [
+              for (var i = 0; i < tasksWithNotes.length; i++) ...[
+                Builder(
+                  builder: (context) {
+                    final task = tasksWithNotes[i];
+                    final taskNoteList = taskNotesMap[task.id] ?? [];
+                    return Container(
+                      margin: EdgeInsets.only(
+                        bottom: i < tasksWithNotes.length - 1 ? 12 : 0,
                       ),
-                    ),
-                    subtitle: Text(
-                      note.content,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
                       ),
-                    ),
-                  ),
-                );
-                final hasMore =
-                    i < taskNotes.length - 1 || legacyList.isNotEmpty;
-                if (hasMore) {
-                  noteWidgets.add(const Divider(height: 12, thickness: 0.5));
-                }
-              }
-              for (var i = 0; i < legacyList.length; i++) {
-                final task = legacyList[i];
-                noteWidgets.add(
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.history_edu_outlined,
-                      color: theme.colorScheme.secondary,
-                    ),
-                    title: Text(
-                      '${task.area.label} - ${task.operationType.label}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Görev başlığı
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.note_alt_outlined,
+                                size: 20,
+                                color: theme.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${task.area.label} - ${task.operationType.label}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // Görev notları (giriş yapıldığı şekilde, ayrı ayrı)
+                          ...taskNoteList.map((noteContent) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: SelectableText(
+                                noteContent,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
-                    ),
-                    subtitle: Text(
-                      task.note ?? '',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                );
-                if (i < legacyList.length - 1) {
-                  noteWidgets.add(const Divider(height: 12, thickness: 0.5));
-                }
-              }
-              return noteWidgets;
-            }(),
+                    );
+                  },
+                ),
+              ],
+            ],
           ),
+      ],
+    );
+  }
+}
+
+/// Araç üzerinde çalışan ustaların özetini gösteren bölüm
+class _WorkerSummarySection extends StatelessWidget {
+  const _WorkerSummarySection({required this.job});
+
+  final JobOrder job;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    // Tüm görevlerdeki workSessions üzerinden usta bazlı toplam saatleri topla
+    final Map<String, double> workerHours = {};
+    for (final task in job.tasks) {
+      for (final session in task.workSessions) {
+        final name = session.workerName ?? session.workerId ?? 'Bilinmeyen';
+        final seconds =
+            session.durationSeconds ??
+            (session.endTime != null
+                ? session.endTime!.difference(session.startTime).inSeconds
+                : DateTime.now().difference(session.startTime).inSeconds);
+        final hours = seconds / 3600.0;
+        workerHours[name] = (workerHours[name] ?? 0) + hours;
+      }
+    }
+
+    if (workerHours.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Araçta Çalışan Ustalar',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Bu araç üzerinde kayıtlı çalışma oturumu bulunmuyor.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      );
+    }
+
+    String _formatHours(double hours) {
+      final h = hours.floor();
+      final m = ((hours - h) * 60).round();
+      if (h > 0 && m > 0) {
+        return '$h s ${m} dk';
+      } else if (h > 0) {
+        return '$h s';
+      } else {
+        return '$m dk';
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Araçta Çalışan Ustalar',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Bu iş emrinde, kayıtlı çalışma oturumlarına göre araç üzerinde çalışmış olan ustalar:',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...workerHours.entries.map((entry) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 18,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          entry.key,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  _formatHours(entry.value),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }

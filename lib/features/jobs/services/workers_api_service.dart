@@ -36,6 +36,7 @@ class WorkersApiService {
   /// - username: Kullanıcı adı
   /// - fullName: Tam ad (opsiyonel)
   /// - role: Rol (admin, manager, supervisor, worker)
+  /// - specialization: Uzmanlık alanı (kaporta, boya, both)
   ///
   /// Döner: Worker - Oluşturulan personel
   ///
@@ -47,6 +48,7 @@ class WorkersApiService {
     required String username,
     String? fullName,
     String? role,
+    String? specialization,
   }) async {
     try {
       // Email göndermiyoruz - backend worker role'ü için otomatik None yapar
@@ -57,6 +59,7 @@ class WorkersApiService {
           'username': username,
           if (fullName != null) 'fullName': fullName,
           if (role != null) 'role': role,
+          if (specialization != null) 'specialization': specialization,
           // Email gönderilmiyor - worker'lar için backend None yapar
         },
       );
@@ -84,6 +87,7 @@ class WorkersApiService {
     String? fullName,
     String? password,
     String? role,
+    String? specialization,
   }) async {
     try {
       // Email göndermiyoruz - backend worker role'ü için otomatik None yapar
@@ -95,6 +99,7 @@ class WorkersApiService {
           if (fullName != null) 'fullName': fullName,
           if (password != null && password.isNotEmpty) 'password': password,
           if (role != null) 'role': role,
+          if (specialization != null) 'specialization': specialization,
           // Email gönderilmiyor - worker'lar için backend None yapar
         },
       );

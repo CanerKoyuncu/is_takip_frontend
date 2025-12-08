@@ -10,8 +10,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app.dart';
 
@@ -25,14 +25,13 @@ Future<void> main() async {
   // Bu, Flutter'ın widget ağacını yönetebilmesi için gereklidir
   WidgetsFlutterBinding.ensureInitialized();
 
-  // .env dosyasını yükle (varsa)
-  // Development ortamında kullanılacak yapılandırmalar
-  // .env.example'dan kopyalanıp .env dosyası oluşturulmalı
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (e) {
-    if (kDebugMode) {
-      debugPrint('⚠️ .env yüklenemedi: $e');
+  // .env dosyasını yalnızca debug ortamında dene (bundling dışı)
+  // Production/prod-like ortamlarda --dart-define ile değer geçilmeli.
+  if (kDebugMode) {
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (e) {
+      debugPrint('⚠️ .env yüklenemedi (dev): $e');
     }
   }
 

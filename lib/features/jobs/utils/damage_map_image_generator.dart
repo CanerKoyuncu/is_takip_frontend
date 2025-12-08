@@ -338,6 +338,6 @@ class DamageMapImageGenerator {
 
       // Draw the path outline in this color
       canvas.drawPath(path, strokePaint);
-        }
+    }
   }
 }

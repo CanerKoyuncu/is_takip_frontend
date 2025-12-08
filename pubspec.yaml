@@ -82,7 +82,6 @@ flutter:
     - assets/car-cutout.svg
     - assets/car-cutout-grouped.svg
     - assets/fonts/
-    - .env
 
 
   # To add assets to your application, add an assets section, like this:

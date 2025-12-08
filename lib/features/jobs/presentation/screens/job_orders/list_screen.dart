@@ -14,11 +14,14 @@ class JobOrdersListScreen extends StatefulWidget {
   State<JobOrdersListScreen> createState() => _JobOrdersListScreenState();
 }
 
+enum CompletionFilter { all, allCompleted, incomplete }
+
 class _JobOrdersListScreenState extends State<JobOrdersListScreen> {
   final _searchController = TextEditingController();
   DateTime? _startDate;
   DateTime? _endDate = DateTime.now();
   bool _showFilters = true; // Varsayılan olarak açık
+  CompletionFilter _completionFilter = CompletionFilter.all;
 
   @override
   void dispose() {
@@ -33,6 +36,12 @@ class _JobOrdersListScreenState extends State<JobOrdersListScreen> {
           : _searchController.text.trim(),
       startDate: _startDate,
       endDate: _endDate,
+      incompleteOnly: _completionFilter == CompletionFilter.incomplete
+          ? true
+          : null,
+      allCompletedOnly: _completionFilter == CompletionFilter.allCompleted
+          ? true
+          : null,
     );
   }
 
@@ -41,6 +50,7 @@ class _JobOrdersListScreenState extends State<JobOrdersListScreen> {
       _searchController.clear();
       _startDate = null;
       _endDate = null;
+      _completionFilter = CompletionFilter.all;
     });
     // Varsayılan filtreleri uygula: bugün oluşturulan ve tamamlanmamış
     await provider.refreshJobs(todayOnly: true, incompleteOnly: true);
@@ -132,6 +142,40 @@ class _JobOrdersListScreenState extends State<JobOrdersListScreen> {
                         ),
                         onChanged: (_) => setState(() {}),
                         onSubmitted: (_) => _applyFilters(provider),
+                      ),
+                      const SizedBox(height: 12),
+                      // Tamamlanma durumu filtresi
+                      DropdownButtonFormField<CompletionFilter>(
+                        value: _completionFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Tamamlanma Durumu',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 16,
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: CompletionFilter.all,
+                            child: Text('Hepsi'),
+                          ),
+                          DropdownMenuItem(
+                            value: CompletionFilter.allCompleted,
+                            child: Text('Tüm Görevler Tamamlandı'),
+                          ),
+                          DropdownMenuItem(
+                            value: CompletionFilter.incomplete,
+                            child: Text('Tüm Görevler Tamamlanmadı'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _completionFilter = value;
+                            });
+                          }
+                        },
                       ),
                       const SizedBox(height: 12),
                       // Tarih filtreleri
@@ -274,15 +318,18 @@ class _JobOrderCardState extends State<_JobOrderCard> {
     final dateFormat = DateFormat('dd.MM.yyyy HH:mm');
     final job = widget.job;
 
-    final pendingTasks = job.tasks
-        .where((task) => task.status == JobTaskStatus.pending)
-        .length;
-    final inProgressTasks = job.tasks
-        .where((task) => task.status == JobTaskStatus.inProgress)
-        .length;
-    final completedTasks = job.tasks
-        .where((task) => task.status == JobTaskStatus.completed)
-        .length;
+    String _getVehicleStageLabel(String? stage) {
+      switch (stage) {
+        case 'insurance_approval_waiting':
+          return 'Sigorta Onayı Bekleniyor';
+        case 'expert_waiting':
+          return 'Eksper Bekleniyor';
+        case 'part_waiting':
+          return 'Parça Bekleniyor';
+        default:
+          return 'Aşama Yok';
+      }
+    }
 
     return Card(
       child: Column(
@@ -343,24 +390,47 @@ class _JobOrderCardState extends State<_JobOrderCard> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Row(
+                  // Araç durumu ve aşaması - belirgin renkli chip'ler
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      _TaskStatusChip(
-                        label: 'Beklemede',
-                        count: pendingTasks,
-                        color: scheme.surfaceContainerHighest,
+                      Chip(
+                        avatar: Icon(
+                          job.isVehicleAvailable
+                              ? Icons.play_circle_outline
+                              : Icons.pause_circle_outline,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          job.isVehicleAvailable
+                              ? 'Araç Üzerinde Çalışılabilir'
+                              : 'Araç Üzerinde Çalışılamaz',
+                        ),
+                        backgroundColor: job.isVehicleAvailable
+                            ? Colors.green
+                            : Colors.red,
+                        labelStyle: Theme.of(
+                          context,
+                        ).textTheme.labelSmall?.copyWith(color: Colors.white),
                       ),
-                      const SizedBox(width: 8),
-                      _TaskStatusChip(
-                        label: 'Devam Ediyor',
-                        count: inProgressTasks,
-                        color: scheme.primaryContainer,
-                      ),
-                      const SizedBox(width: 8),
-                      _TaskStatusChip(
-                        label: 'Tamamlandı',
-                        count: completedTasks,
-                        color: scheme.secondaryContainer,
+                      Chip(
+                        avatar: const Icon(
+                          Icons.local_shipping_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          job.vehicleStage != null && job.vehicleStage != 'none'
+                              ? _getVehicleStageLabel(job.vehicleStage!)
+                              : 'Araç Aşaması: Yok',
+                        ),
+                        backgroundColor: scheme.surfaceContainerHighest,
+                        labelStyle: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
                     ],
                   ),
@@ -539,35 +609,4 @@ class _TaskListItem extends StatelessWidget {
   }
 }
 
-class _TaskStatusChip extends StatelessWidget {
-  const _TaskStatusChip({
-    required this.label,
-    required this.count,
-    required this.color,
-  });
-
-  final String label;
-  final int count;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    if (count == 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        '$count $label',
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-}
+// _TaskStatusChip kaldırıldı (görev durum özetinde kullanılmıyor).***

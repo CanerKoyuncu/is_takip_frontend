@@ -182,6 +182,7 @@ class JobsProvider extends ChangeNotifier {
   /// - limit: Maksimum sonuç sayısı (opsiyonel)
   /// - todayOnly: Sadece bugün oluşturulan iş emirleri (opsiyonel)
   /// - incompleteOnly: Sadece tamamlanmamış iş emirleri (opsiyonel)
+  /// - allCompletedOnly: Sadece tüm görevleri tamamlanmış iş emirleri (opsiyonel)
   Future<void> refreshJobs({
     String? search,
     DateTime? startDate,
@@ -189,6 +190,7 @@ class JobsProvider extends ChangeNotifier {
     int? limit,
     bool? todayOnly,
     bool? incompleteOnly,
+    bool? allCompletedOnly,
   }) async {
     _setLoading(true);
     _setError(null);
@@ -202,6 +204,7 @@ class JobsProvider extends ChangeNotifier {
         limit: limit,
         todayOnly: todayOnly,
         incompleteOnly: incompleteOnly,
+        allCompletedOnly: allCompletedOnly,
       );
       // Cache'i temizle ve yeni verilerle doldur
       _jobs.clear();

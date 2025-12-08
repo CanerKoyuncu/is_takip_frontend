@@ -130,7 +130,9 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
+          // Dialog'u iptal ederken hiçbir veri döndürme
+          // Böylece çağıran taraf result == null kontrolüyle iptali anlar
+          onPressed: () => Navigator.of(context).pop(null),
           child: const Text('İptal'),
         ),
         FilledButton(

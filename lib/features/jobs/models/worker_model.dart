@@ -8,6 +8,7 @@ class Worker {
     this.fullName,
     this.email,
     this.role,
+    this.specialization,
   });
 
   final String id;
@@ -15,6 +16,9 @@ class Worker {
   final String? fullName;
   final String? email;
   final String? role;
+
+  /// Ustanın uzmanlık alanı (kaporta, boya, both/null)
+  final String? specialization;
 
   /// JSON'dan Worker oluşturur
   factory Worker.fromJson(Map<String, dynamic> json) {
@@ -28,6 +32,7 @@ class Worker {
       fullName: json['fullName'] as String?,
       email: email,
       role: role,
+      specialization: json['specialization'] as String?,
     );
   }
 
@@ -40,6 +45,7 @@ class Worker {
       // Workers don't have email - don't include email for worker role
       if (email != null && role != 'worker') 'email': email,
       if (role != null) 'role': role,
+      if (specialization != null) 'specialization': specialization,
     };
   }
 

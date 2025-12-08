@@ -42,6 +42,7 @@ class JobsApiService {
   /// - limit: Maksimum sonuç sayısı (opsiyonel)
   /// - todayOnly: Sadece bugün oluşturulan iş emirleri (opsiyonel)
   /// - incompleteOnly: Sadece tamamlanmamış iş emirleri (opsiyonel)
+  /// - allCompletedOnly: Sadece tüm görevleri tamamlanmış iş emirleri (opsiyonel)
   ///
   /// Döner: List<JobOrder> - İş emirleri listesi
   Future<List<JobOrder>> getJobs({
@@ -51,6 +52,7 @@ class JobsApiService {
     int? limit,
     bool? todayOnly,
     bool? incompleteOnly,
+    bool? allCompletedOnly,
   }) async {
     // Query parametrelerini oluştur
     final queryParams = <String, dynamic>{};
@@ -81,6 +83,10 @@ class JobsApiService {
 
     if (incompleteOnly != null) {
       queryParams['incomplete_only'] = incompleteOnly;
+    }
+
+    if (allCompletedOnly != null) {
+      queryParams['all_completed_only'] = allCompletedOnly;
     }
 
     final response = await _apiService.get(

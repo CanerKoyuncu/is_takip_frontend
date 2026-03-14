@@ -1,6 +1,8 @@
 /// Müsait Görevler Ekranı
 ///
 /// Personelin henüz atanmamış görevleri görmesini ve almasını sağlar.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,6 +26,75 @@ class AvailableTasksScreen extends StatefulWidget {
   State<AvailableTasksScreen> createState() => _AvailableTasksScreenState();
 }
 
+/// Not içindeki `- [ ]` / `- [x]` satırlarını pasif checklist olarak gösterir.
+class _ChecklistNotePreview extends StatelessWidget {
+  const _ChecklistNotePreview({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lines = text.split('\n');
+
+    final children = <Widget>[];
+    for (final line in lines) {
+      final trimmed = line.trimLeft();
+      final match = RegExp(r'^-\s*\[( |x|X)\]\s*(.*)$').firstMatch(trimmed);
+      if (match != null) {
+        final checked = match.group(1)!.toLowerCase() == 'x';
+        final label = match.group(2) ?? '';
+        children.add(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: checked,
+                onChanged: null, // sadece görüntüleme
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      } else if (line.isNotEmpty) {
+        children.add(
+          Text(
+            line,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        );
+      }
+    }
+
+    // Eğer checklist bulunmadıysa metni olduğu gibi göster
+    if (children.isEmpty) {
+      return Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+}
+
 class _AvailableTasksScreenState extends State<AvailableTasksScreen> {
   @override
   void initState() {
@@ -38,18 +109,59 @@ class _AvailableTasksScreenState extends State<AvailableTasksScreen> {
 
   Future<void> _assignTask(String jobId, String taskId) async {
     final provider = context.read<JobsProvider>();
+
+    // Check if we're in kiosk mode (no user logged in, token-based)
+    final isKioskMode =
+        ModalRoute.of(context)?.settings.name?.startsWith('/kiosk') ?? false;
+
     try {
       LoadingSnackbar.show(context, message: 'Görev alınıyor...');
-      await provider.assignTask(jobId: jobId, taskId: taskId);
+
+      if (isKioskMode) {
+        // In kiosk mode, auto-select a worker
+        final workers = await _getAvailableWorkers();
+        if (workers.isEmpty) {
+          if (mounted) {
+            LoadingSnackbar.hide(context);
+            ErrorSnackbar.showError(context, 'Usta bulunamadı');
+          }
+          return;
+        }
+
+        // Select the first available worker
+        final selectedWorker = workers.first;
+        await provider.startTask(
+          jobId: jobId,
+          taskId: taskId,
+          assignedWorkerId: selectedWorker['id'] as String,
+        );
+      } else {
+        // In normal mode, use the old assignTask method
+        await provider.assignTask(jobId: jobId, taskId: taskId);
+      }
+
       if (mounted) {
         LoadingSnackbar.hide(context);
         ErrorSnackbar.showSuccess(context, 'Görev başarıyla alındı');
+        _loadTasks(); // Refresh the list
       }
     } catch (e) {
       if (mounted) {
         LoadingSnackbar.hide(context);
         ErrorSnackbar.showError(context, 'Görev alınırken hata: $e');
       }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _getAvailableWorkers() async {
+    try {
+      final provider = context.read<JobsProvider>();
+      // This will call the new API endpoint
+      final response = await provider.getAvailableWorkers();
+      return response;
+    } catch (e) {
+      debugPrint('Usta listesi alınırken hata: $e');
+      return [];
     }
   }
 
@@ -145,14 +257,7 @@ class _AvailableTasksScreenState extends State<AvailableTasksScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 subtitle: task.note != null && task.note!.isNotEmpty
-                    ? Text(
-                        task.note!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      )
+                    ? _ChecklistNotePreview(text: task.note!)
                     : null,
                 trailing: FilledButton.icon(
                   onPressed: () => _assignTask(job.id, task.id),

@@ -14,6 +14,7 @@
 import '../models/job_models.dart';
 import '../models/job_task_draft.dart';
 import '../models/vehicle_area.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
 
 /// Araç parçası mapping yardımcı sınıfı
 ///
@@ -28,6 +29,10 @@ class VehiclePartMapper {
     'tavan': VehicleArea.roof,
     'bagaj-kapisi': VehicleArea.trunk,
     'on-tampon': VehicleArea.frontBumper,
+    'on-tampon-demir': VehicleArea.frontBumper,
+    'on-tampon-civata': VehicleArea.frontBumper,
+    'sol-on-sis': VehicleArea.frontBumper,
+    'sag-on-sis': VehicleArea.frontBumper,
     'arka-tampon': VehicleArea.rearBumper,
     'on-cam': VehicleArea.frontWindshield,
     'arka-cam': VehicleArea.rearWindshield,
@@ -49,7 +54,9 @@ class VehiclePartMapper {
     'sag-on-cam': VehicleArea.rightFrontDoor,
     'sag-arka-cam': VehicleArea.rightRearDoor,
     'sol-arka-kelebek': VehicleArea.leftRearDoor,
-    'path682': VehicleArea.rightFrontDoor, // Sağ orta cam
+    'path682': VehicleArea
+        .rightFrontDoor, // Sağ orta cam (eski ID - backward compatibility)
+    'sag-orta-cam': VehicleArea.rightFrontDoor, // Yeni anlamlı ID
     // Sunroof - tavana map edilir
     'sunroof': VehicleArea.roof,
     // Çamurluklar
@@ -71,20 +78,66 @@ class VehiclePartMapper {
 
   static const Map<VehicleArea, List<String>> _vehicleAreaToPartIds = {
     VehicleArea.hood: ['kaput'],
-    VehicleArea.roof: ['tavan'],
+    VehicleArea.roof: ['tavan', 'sunroof'],
     VehicleArea.trunk: ['bagaj-kapisi'],
-    VehicleArea.frontBumper: ['on-tampon'],
+    VehicleArea.frontBumper: [
+      'on-tampon',
+      'on-tampon-demir',
+      'on-tampon-civata',
+      'sol-on-sis',
+      'sag-on-sis',
+    ],
     VehicleArea.rearBumper: ['arka-tampon'],
     VehicleArea.frontWindshield: ['on-cam'],
     VehicleArea.rearWindshield: ['arka-cam'],
-    VehicleArea.leftFrontFender: ['sol-on-dodik'],
-    VehicleArea.leftRearQuarter: ['sol-arka-dodik'],
-    VehicleArea.rightFrontFender: ['sag-on-dodik'],
-    VehicleArea.rightRearQuarter: ['sag-arka-dodik'],
-    VehicleArea.leftFrontDoor: ['sol-on-kapı', 'sol-on-kapi'],
-    VehicleArea.leftRearDoor: ['sol-arka-kapı', 'sol-arka-kapi'],
-    VehicleArea.rightFrontDoor: ['sag-on-kapı', 'sag-on-kapi'],
-    VehicleArea.rightRearDoor: ['sag-arka-kapı', 'sag-arka-kapi'],
+    VehicleArea.leftFrontFender: [
+      'sol-on-dodik',
+      'sol-on-etek',
+      'sol-on-camurluk',
+    ],
+    VehicleArea.leftRearQuarter: [
+      'sol-arka-dodik',
+      'sol-arka-etek',
+      'sol-arka-camurluk',
+    ],
+    VehicleArea.rightFrontFender: [
+      'sag-on-dodik',
+      'sag-on-etek',
+      'sag-on-camurluk',
+    ],
+    VehicleArea.rightRearQuarter: [
+      'sag-arka-dodik',
+      'sag-arka-etek',
+      'sag-arka-camurluk',
+      'yakit-depo-kapagi',
+    ],
+    VehicleArea.leftFrontDoor: [
+      'sol-on-kapı',
+      'sol-on-kapi',
+      'sol-on-cam',
+      'sol-on-kapi-kolu',
+    ],
+    VehicleArea.leftRearDoor: [
+      'sol-arka-kapı',
+      'sol-arka-kapi',
+      'sol-arka-cam',
+      'sol-arka-kelebek',
+      'sol-arka-kapi-kolu',
+    ],
+    VehicleArea.rightFrontDoor: [
+      'sag-on-kapı',
+      'sag-on-kapi',
+      'sag-on-cam',
+      'path682', // Eski ID - backward compatibility
+      'sag-orta-cam', // Yeni anlamlı ID
+      'sag-on-kapi-kolu',
+    ],
+    VehicleArea.rightRearDoor: [
+      'sag-arka-kapı',
+      'sag-arka-kapi',
+      'sag-arka-cam',
+      'sag-arka-kapi-kolu',
+    ],
   };
 
   static VehicleArea? partIdToVehicleArea(String partId) {
@@ -131,7 +184,7 @@ class VehiclePartMapper {
       case VehicleDamageActions.kaporta:
         return JobOperationType.onarim; // Kaporta kategorisi
       case VehicleDamageActions.degisim:
-        return JobOperationType.sokTak; // Kaporta kategorisi
+        return JobOperationType.change; // Kaporta kategorisi
       case VehicleDamageActions.temizle:
         return null;
       default:
@@ -146,8 +199,9 @@ class VehiclePartMapper {
 
   static List<JobTaskDraft> selectionsToTaskDrafts(
     VehiclePartSelections selections,
-    List<VehiclePart> parts,
-  ) {
+    List<VehiclePart> parts, {
+    Map<String, List<SparePartItem>> sparePartsSelections = const {},
+  }) {
     final drafts = <JobTaskDraft>[];
 
     for (final entry in selections.entries) {
@@ -165,6 +219,11 @@ class VehiclePartMapper {
         continue;
       }
 
+      final partSpareParts = sparePartsSelections[partId] ?? const [];
+
+      // İlk aksiyona yedek parçaları ekleyelim (genelde kaporta aksiyonu ilk olur)
+      bool sparePartsAssigned = false;
+
       for (final action in actions) {
         if (action == VehicleDamageActions.temizle) {
           continue;
@@ -175,16 +234,15 @@ class VehiclePartMapper {
           continue;
         }
 
-        // Başlangıçta otomatik not eklemiyoruz.
-        // Notlar, kullanıcı tarafından "Veri Ekle" ekranından veya
-        // iş emri oluşturma formundaki not alanlarından girilecek.
         drafts.add(
           JobTaskDraft(
             area: area,
             operationType: operationType,
             note: null,
+            spareParts: !sparePartsAssigned ? partSpareParts : const [],
           ),
         );
+        sparePartsAssigned = true;
       }
     }
 

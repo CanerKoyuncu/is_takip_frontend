@@ -7,6 +7,7 @@
 /// - Özelleştirilebilir icon
 /// - Mesaj gösterimi
 /// - Opsiyonel action button
+library;
 
 import 'package:flutter/material.dart';
 

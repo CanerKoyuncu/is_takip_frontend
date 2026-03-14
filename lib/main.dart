@@ -8,8 +8,8 @@
 /// - Türkçe tarih formatlamasını yükler
 /// - Ana uygulama widget'ını çalıştırır
 
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -25,9 +25,9 @@ Future<void> main() async {
   // Bu, Flutter'ın widget ağacını yönetebilmesi için gereklidir
   WidgetsFlutterBinding.ensureInitialized();
 
-  // .env dosyasını yalnızca debug ortamında dene (bundling dışı)
-  // Production/prod-like ortamlarda --dart-define ile değer geçilmeli.
-  if (kDebugMode) {
+  // .env dosyasını yalnızca DEBUG + native platformda dene.
+  // Web'de .env fetch denemesini engelliyoruz; web için --dart-define kullanın.
+  if (kDebugMode && !kIsWeb) {
     try {
       await dotenv.load(fileName: '.env');
     } catch (e) {

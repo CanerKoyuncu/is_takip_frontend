@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show SparePartItem, PartSparePartsMap, VehiclePartsRegistry;
 
 import '../../models/vehicle_area.dart';
 import '../../utils/damage_action_styles.dart';
@@ -21,6 +23,8 @@ class VehicleDamageMap extends StatefulWidget {
     this.backgroundAssetName = 'assets/car-cutout-grouped.svg',
     this.initialSelections = const {},
     this.onSelectionsChanged,
+    this.initialSparePartsSelections = const {},
+    this.onSparePartsChanged,
     this.readOnly = false,
     this.onPartTap,
     this.showActionSheet = true,
@@ -39,6 +43,13 @@ class VehicleDamageMap extends StatefulWidget {
 
   final VehiclePartSelections initialSelections;
   final ValueChanged<VehiclePartSelections>? onSelectionsChanged;
+
+  /// Kullanıcının önceden girdiği yedek parçalar (partId → liste).
+  final PartSparePartsMap initialSparePartsSelections;
+
+  /// Parça seçim değiştiğinde çağrılır (partId → yedek parça listesi).
+  final ValueChanged<PartSparePartsMap>? onSparePartsChanged;
+
   final bool readOnly;
   final ValueChanged<VehiclePart>? onPartTap;
   final bool showActionSheet;
@@ -51,6 +62,7 @@ class VehicleDamageMap extends StatefulWidget {
 
 class _VehicleDamageMapState extends State<VehicleDamageMap> {
   late VehiclePartSelections _selections;
+  late PartSparePartsMap _sparePartsSelections;
   Future<List<VehiclePart>>? _autoPartsFuture;
 
   @override
@@ -59,6 +71,11 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
     _selections = Map<String, List<String>>.from(
       widget.initialSelections.map(
         (key, value) => MapEntry(key, List<String>.from(value)),
+      ),
+    );
+    _sparePartsSelections = Map.from(
+      widget.initialSparePartsSelections.map(
+        (key, value) => MapEntry(key, List<SparePartItem>.from(value)),
       ),
     );
     _refreshAutoPartsFuture();
@@ -71,6 +88,16 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
       _selections = Map<String, List<String>>.from(
         widget.initialSelections.map(
           (key, value) => MapEntry(key, List<String>.from(value)),
+        ),
+      );
+    }
+    if (!mapEquals(
+      widget.initialSparePartsSelections,
+      oldWidget.initialSparePartsSelections,
+    )) {
+      _sparePartsSelections = Map.from(
+        widget.initialSparePartsSelections.map(
+          (key, value) => MapEntry(key, List<SparePartItem>.from(value)),
         ),
       );
     }
@@ -359,12 +386,8 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
     final artboardPoint = layout.toArtboard(localPosition);
     VehiclePart? tapped;
 
-    // Try to find the tapped part using multiple detection methods
     for (final part in parts.reversed) {
-      // First check bounds (quick rejection test)
       if (!part.bounds.contains(artboardPoint)) continue;
-
-      // Try standard contains check first (works for closed/filled paths)
       try {
         if (part.path.contains(artboardPoint)) {
           tapped = part;
@@ -373,53 +396,48 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
       } catch (e) {
         debugPrint('Error checking path.contains for ${part.id}: $e');
       }
-
-      // For known closed shapes (rect, circle) that come from SVG rect/circle elements,
-      // use bounds-based hit test since they may have fill:none
-      // This includes: sunroof (rect), and other rect/circle parts
       if (HitTestUtils.isKnownClosedShape(part.id) || part.allowBoundsHitTest) {
         tapped = part;
         break;
       }
-
       if (HitTestUtils.isPathClosed(part.path)) {
         tapped = part;
         break;
       }
-
-      // For open/stroke paths, check if point is near the path
-      // This handles cases like "tavan" which is a stroke-only path
-      // Use the inverse scale for tolerance calculation
-      final tolerance = 20.0; // Fixed tolerance in SVG coordinates
+      final tolerance = 20.0;
       if (HitTestUtils.isPointNearPath(artboardPoint, part.path, tolerance)) {
         tapped = part;
         break;
       }
     }
 
-    if (tapped == null || !mounted) {
-      return;
-    }
+    if (tapped == null || !mounted) return;
 
     debugPrint('Part tapped: ${tapped.displayName} (${tapped.id})');
-
     widget.onPartTap?.call(tapped);
 
-    if (!widget.showActionSheet) {
-      return;
-    }
+    if (!widget.showActionSheet) return;
 
     final currentActions = List<String>.from(_selections[tapped.id] ?? []);
-    final updatedActions = await showModalBottomSheet<List<String>>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) =>
-          VehicleActionSheet(part: tapped!, selectedActions: currentActions),
+    final currentSpareParts = List<SparePartItem>.from(
+      _sparePartsSelections[tapped.id] ??
+          (VehiclePartsRegistry.byId(tapped.id)?.spareParts ?? const []),
     );
 
-    if (!mounted || updatedActions == null) {
-      return;
-    }
+    final result = await showModalBottomSheet<VehicleActionSheetResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => VehicleActionSheet(
+        part: tapped!,
+        selectedActions: currentActions,
+        initialSpareParts: currentSpareParts,
+      ),
+    );
+
+    if (!mounted || result == null) return;
+
+    // Capture non-nullable reference before the async gap ends
+    final tappedId = tapped.id;
 
     setState(() {
       _selections = Map<String, List<String>>.from(
@@ -427,29 +445,39 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
           (key, value) => MapEntry(key, List<String>.from(value)),
         ),
       );
-      if (updatedActions.isEmpty) {
-        _selections.remove(tapped!.id);
+      if (result.selectedActions.isEmpty) {
+        _selections.remove(tappedId);
       } else {
-        _selections[tapped!.id] = updatedActions;
+        _selections[tappedId] = result.selectedActions;
+      }
+
+      _sparePartsSelections = Map.from(_sparePartsSelections);
+      if (result.spareParts.isEmpty) {
+        _sparePartsSelections.remove(tappedId);
+      } else {
+        _sparePartsSelections[tappedId] = result.spareParts;
       }
     });
 
     debugPrint(
-      '[VehicleDamageMap] Updated selections: ${_selections.length} parts, '
-      'tapped part: ${tapped.id}, actions: $updatedActions',
+      '[VehicleDamageMap] Updated: selections=${_selections.length} parts, '
+      'spare parts=${_sparePartsSelections.length} parts',
     );
 
     widget.onSelectionsChanged?.call(
       Map<String, List<String>>.unmodifiable(
         _selections.map(
-          (key, value) => MapEntry(key, List<String>.unmodifiable(value)),
+          (key, value) => MapEntry(key, List.unmodifiable(value)),
         ),
       ),
     );
 
-    debugPrint(
-      '[VehicleDamageMap] onSelectionsChanged callback called: '
-      '${widget.onSelectionsChanged != null}',
+    widget.onSparePartsChanged?.call(
+      Map.unmodifiable(
+        _sparePartsSelections.map(
+          (key, value) => MapEntry(key, List.unmodifiable(value)),
+        ),
+      ),
     );
   }
 

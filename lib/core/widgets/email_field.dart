@@ -1,6 +1,7 @@
 /// Email Field Widget
 ///
 /// Email input field widget'ı. Email formatı validasyonu ile.
+library;
 
 import 'package:flutter/material.dart';
 import 'form_validators.dart';
@@ -49,10 +50,10 @@ class EmailField extends StatelessWidget {
         helperText: helperText,
       ),
       validator: required
-          ? (value) => FormValidators.required(value) ?? FormValidators.email(value)
+          ? (value) =>
+                FormValidators.required(value) ?? FormValidators.email(value)
           : FormValidators.email,
       onChanged: onChanged,
     );
   }
 }
-

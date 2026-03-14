@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/job_models.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show SparePartItem, PartSupplySource;
 import '../utils/task_category_styles.dart';
 import '../models/vehicle_area.dart';
 import '../providers/jobs_provider.dart';
@@ -214,6 +216,10 @@ class TaskListItem extends StatelessWidget {
                         );
                       },
                     ),
+                    if (task.spareParts.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _SparePartsView(spareParts: task.spareParts),
+                    ],
                     if (noteText != null && noteText.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       _ChecklistNoteView(
@@ -425,15 +431,37 @@ class TaskListItem extends StatelessWidget {
       // Kiosk modunda olup olmadığını kontrol et
       final isKioskMode =
           ModalRoute.of(context)?.settings.name?.startsWith('/kiosk') ?? false;
-      final selectedWorker = await WorkerSelectDialog.show(
-        context,
-        kioskMode: isKioskMode,
-      );
 
-      // Kullanıcı iptal ettiyse çık
-      if (selectedWorker == null || !context.mounted) return;
+      if (isKioskMode) {
+        // Kiosk modunda: otomatik usta seç
+        final provider = context.read<JobsProvider>();
+        try {
+          final workers = await provider.getAvailableWorkers();
+          if (workers.isEmpty) {
+            if (context.mounted) {
+              ErrorSnackbar.showError(context, 'Usta bulunamadı');
+            }
+            return;
+          }
+          workerId = workers.first['id'] as String;
+        } catch (e) {
+          if (context.mounted) {
+            ErrorSnackbar.showError(context, 'Usta listesi alınırken hata: $e');
+          }
+          return;
+        }
+      } else {
+        // Normal mod: personel seçim dialog'unu aç
+        final selectedWorker = await WorkerSelectDialog.show(
+          context,
+          kioskMode: false,
+        );
 
-      workerId = selectedWorker.id;
+        // Kullanıcı iptal ettiyse çık
+        if (selectedWorker == null || !context.mounted) return;
+
+        workerId = selectedWorker.id;
+      }
     }
 
     final provider = context.read<JobsProvider>();
@@ -503,21 +531,11 @@ class TaskListItem extends StatelessWidget {
     if (!context.mounted) return;
 
     try {
-      LoadingSnackbar.show(
-        context,
-        message: 'Görev duraklatılıyor...',
-      );
-      await provider.pauseTask(
-        jobId: jobId,
-        taskId: task.id,
-        note: note,
-      );
+      LoadingSnackbar.show(context, message: 'Görev duraklatılıyor...');
+      await provider.pauseTask(jobId: jobId, taskId: task.id, note: note);
       if (context.mounted) {
         LoadingSnackbar.hide(context);
-        ErrorSnackbar.showSuccess(
-          context,
-          'Görev duraklatıldı',
-        );
+        ErrorSnackbar.showSuccess(context, 'Görev duraklatıldı');
         if (onStatusChanged != null) {
           await onStatusChanged!();
         }
@@ -525,16 +543,15 @@ class TaskListItem extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         LoadingSnackbar.hide(context);
-        ErrorSnackbar.showError(
-          context,
-          'Görev duraklatılırken hata: $e',
-        );
+        ErrorSnackbar.showError(context, 'Görev duraklatılırken hata: $e');
       }
     }
   }
 
   Future<void> _editNote(BuildContext context) async {
-    final controller = TextEditingController(text: noteOverride ?? task.note ?? '');
+    final controller = TextEditingController(
+      text: noteOverride ?? task.note ?? '',
+    );
     final focusNode = FocusNode();
 
     void insertListItem(String prefix) {
@@ -542,7 +559,9 @@ class TaskListItem extends StatelessWidget {
       final selection = controller.selection;
       final start = selection.start >= 0 ? selection.start : text.length;
       final end = selection.end >= 0 ? selection.end : start;
-      final previousChar = start > 0 && start <= text.length ? text[start - 1] : null;
+      final previousChar = start > 0 && start <= text.length
+          ? text[start - 1]
+          : null;
       final needsNewline = previousChar != null && previousChar != '\n';
       final insertion = '${needsNewline ? '\n' : ''}$prefix';
       final updatedText = text.replaceRange(start, end, insertion);
@@ -576,7 +595,10 @@ class TaskListItem extends StatelessWidget {
                             insertListItem('• ');
                             focusNode.requestFocus();
                           },
-                          icon: const Icon(Icons.format_list_bulleted_outlined, size: 18),
+                          icon: const Icon(
+                            Icons.format_list_bulleted_outlined,
+                            size: 18,
+                          ),
                           label: const Text('Madde Ekle'),
                         ),
                         OutlinedButton.icon(
@@ -584,7 +606,10 @@ class TaskListItem extends StatelessWidget {
                             insertListItem('- [ ] ');
                             focusNode.requestFocus();
                           },
-                          icon: const Icon(Icons.check_box_outline_blank, size: 18),
+                          icon: const Icon(
+                            Icons.check_box_outline_blank,
+                            size: 18,
+                          ),
                           label: const Text('Kontrol Listesi'),
                         ),
                       ],
@@ -645,10 +670,7 @@ class TaskListItem extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         LoadingSnackbar.hide(context);
-        ErrorSnackbar.showError(
-          context,
-          'Görev notu güncellenirken hata: $e',
-        );
+        ErrorSnackbar.showError(context, 'Görev notu güncellenirken hata: $e');
       }
     }
   }
@@ -781,13 +803,17 @@ class _ChecklistNoteView extends StatelessWidget {
     bool wasChecked,
   ) async {
     final line = lines[index];
-    final leadingSpaces =
-        line.substring(0, line.length - line.trimLeft().length);
+    final leadingSpaces = line.substring(
+      0,
+      line.length - line.trimLeft().length,
+    );
     final trimmed = line.trimLeft();
 
     final newPrefix = wasChecked ? '- [ ] ' : '- [x] ';
-    final afterPrefix =
-        trimmed.replaceFirst(RegExp(r'^-\s*\[( |x|X)\]\s*'), '');
+    final afterPrefix = trimmed.replaceFirst(
+      RegExp(r'^-\s*\[( |x|X)\]\s*'),
+      '',
+    );
     final newLine = '$leadingSpaces$newPrefix$afterPrefix';
 
     lines[index] = newLine;
@@ -816,5 +842,86 @@ class _ChecklistNoteView extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+class _SparePartsView extends StatelessWidget {
+  const _SparePartsView({required this.spareParts});
+
+  final List<SparePartItem> spareParts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 14,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Yedek Parçalar',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: spareParts.map((item) {
+            final isInsurance = item.supplySource == PartSupplySource.sigorta;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isInsurance
+                    ? Colors.blue.withOpacity(0.1)
+                    : Colors.teal.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isInsurance
+                      ? Colors.blue.withOpacity(0.3)
+                      : Colors.teal.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                  ),
+                  if (item.partCode != null && item.partCode!.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '(${item.partCode})',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 10,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 4),
+                  Icon(
+                    isInsurance ? Icons.security : Icons.shopping_cart,
+                    size: 10,
+                    color: isInsurance ? Colors.blue : Colors.teal,
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 }

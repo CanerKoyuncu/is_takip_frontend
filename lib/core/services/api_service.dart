@@ -14,8 +14,6 @@
 /// - Cookie yönetimi (HttpOnly cookie desteği)
 library;
 
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' as io show HttpClient;

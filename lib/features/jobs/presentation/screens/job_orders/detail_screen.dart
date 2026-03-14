@@ -14,6 +14,8 @@ import '../../../../../core/services/api_service_factory.dart';
 import '../../../../../core/widgets/error_state.dart';
 import '../../../../../core/widgets/loading_indicator.dart';
 import '../../widgets/vehicle_damage_map.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show PartSupplySource;
 import '../../../widgets/task_list_item.dart';
 import '../../../widgets/task_photo_dialog.dart';
 import '../../../../../core/widgets/error_snackbar.dart';
@@ -585,6 +587,177 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Required Parts Card
+              if (job.requiredParts.isNotEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Gelecek Parçalar',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: job.requiredParts.map((part) {
+                            return Chip(
+                              label: Text(part),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondaryContainer.withOpacity(0.5),
+                              side: BorderSide.none,
+                              labelStyle: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSecondaryContainer,
+                                fontSize: 13,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (job.requiredParts.isNotEmpty) const SizedBox(height: 16),
+
+              // Comprehensive Spare Parts Summary Card
+              if (job.allSpareParts.isNotEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Yedek Parça Özeti',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '${job.allSpareParts.length} Parça',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: job.allSpareParts.length,
+                          separatorBuilder: (context, index) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final item = job.allSpareParts[index];
+                            final isInsurance =
+                                item.supplySource == PartSupplySource.sigorta;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.name,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                        ),
+                                        if (item.partCode != null &&
+                                            item.partCode!.isNotEmpty)
+                                          Text(
+                                            'Parça Kodu: ${item.partCode}',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isInsurance
+                                          ? Colors.blue.withOpacity(0.1)
+                                          : Colors.teal.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isInsurance
+                                              ? Icons.security
+                                              : Icons.shopping_cart,
+                                          size: 14,
+                                          color: isInsurance
+                                              ? Colors.blue
+                                              : Colors.teal,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          isInsurance ? 'Sigorta' : 'Kendi',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: isInsurance
+                                                    ? Colors.blue
+                                                    : Colors.teal,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (job.allSpareParts.isNotEmpty) const SizedBox(height: 16),
 
               // Vehicle Damage Map
               Card(

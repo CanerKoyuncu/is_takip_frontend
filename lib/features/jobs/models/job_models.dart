@@ -14,6 +14,7 @@
 /// - JobOrder: İş emri (ana model)
 
 import 'package:flutter/material.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
 
 import 'vehicle_area.dart';
 
@@ -489,12 +490,11 @@ class JobTask {
     this.blockingReason, // Engelleme nedeni (parça bekleniyor, eksper bekleniyor, vb.)
     this.isTaskAvailable = true, // Görev üzerinde çalışılabilir mi
     List<TaskPhoto> photos = const <TaskPhoto>[], // Fotoğraflar
-    List<TaskWorkSession> workSessions =
-        const <TaskWorkSession>[], // Çalışma oturumları
+    List<TaskWorkSession> workSessions = const <TaskWorkSession>[], // Çalışma oturumları
+    List<SparePartItem> spareParts = const <SparePartItem>[], // Yedek parçalar
   }) : photos = List<TaskPhoto>.unmodifiable(photos),
-       workSessions = List<TaskWorkSession>.unmodifiable(
-         workSessions,
-       ); // Immutable liste
+       workSessions = List<TaskWorkSession>.unmodifiable(workSessions),
+       spareParts = List<SparePartItem>.unmodifiable(spareParts);
 
   final String id;
   final VehicleArea area;
@@ -509,6 +509,7 @@ class JobTask {
   final bool isTaskAvailable;
   final List<TaskPhoto> photos;
   final List<TaskWorkSession> workSessions;
+  final List<SparePartItem> spareParts;
 
   /// Toplam çalışma süresini saat cinsinden hesaplar
   double get totalWorkHours {
@@ -545,6 +546,7 @@ class JobTask {
     bool? isTaskAvailable,
     List<TaskPhoto>? photos,
     List<TaskWorkSession>? workSessions,
+    List<SparePartItem>? spareParts,
   }) {
     return JobTask(
       id: id,
@@ -560,6 +562,7 @@ class JobTask {
       isTaskAvailable: isTaskAvailable ?? this.isTaskAvailable,
       photos: photos ?? this.photos,
       workSessions: workSessions ?? this.workSessions,
+      spareParts: spareParts ?? this.spareParts,
     );
   }
 }
@@ -577,7 +580,9 @@ class JobOrder {
     this.generalNotes, // Genel notlar
     this.isVehicleAvailable = true, // Arabanın üzerinde çalışılabilir mi
     this.vehicleStage, // Araç aşaması (sigorta onayı, eksper, parça bekleniyor vb.)
-  }) : _tasks = List<JobTask>.unmodifiable(tasks); // Immutable liste
+    List<String> requiredParts = const [],
+  }) : _tasks = List<JobTask>.unmodifiable(tasks),
+       requiredParts = List<String>.unmodifiable(requiredParts);
 
   final String id;
   final VehicleInfo vehicle;
@@ -587,11 +592,22 @@ class JobOrder {
   final bool isVehicleAvailable;
   final String?
   vehicleStage; // none, insurance_approval_waiting, expert_waiting, part_waiting
+  final List<String> requiredParts;
+
   // Private tasks listesi - immutable getter ile erişilir
   final List<JobTask> _tasks;
 
   /// Görevler listesi (immutable)
   List<JobTask> get tasks => List<JobTask>.unmodifiable(_tasks);
+
+  /// Tüm görevlerdeki yedek parçaların listesi
+  List<SparePartItem> get allSpareParts {
+    final all = <SparePartItem>[];
+    for (final task in _tasks) {
+      all.addAll(task.spareParts);
+    }
+    return List.unmodifiable(all);
+  }
 
   /// İş emrinin durumunu hesaplar
   ///
@@ -652,6 +668,7 @@ class JobOrder {
     String? generalNotes,
     bool? isVehicleAvailable,
     String? vehicleStage,
+    List<String>? requiredParts,
   }) {
     return JobOrder(
       id: id,
@@ -661,6 +678,7 @@ class JobOrder {
       generalNotes: generalNotes ?? this.generalNotes,
       isVehicleAvailable: isVehicleAvailable ?? this.isVehicleAvailable,
       vehicleStage: vehicleStage ?? this.vehicleStage,
+      requiredParts: requiredParts ?? this.requiredParts,
     );
   }
 }

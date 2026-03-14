@@ -2,6 +2,7 @@
 ///
 /// Tarih seçimi için standart buton widget'ı.
 /// Filtreleme ve form ekranlarında kullanılır.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

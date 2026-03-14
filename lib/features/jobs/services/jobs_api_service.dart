@@ -20,6 +20,7 @@ import '../../../core/services/api_service.dart';
 import '../models/job_models.dart';
 import '../models/job_task_draft.dart';
 import '../models/vehicle_area.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
 import '../utils/enum_mapper.dart';
 
 /// İş emirleri API servis sınıfı
@@ -128,6 +129,7 @@ class JobsApiService {
     required VehicleInfo vehicle,
     required List<JobTaskDraft> taskDrafts,
     String? generalNotes,
+    List<String> requiredParts = const [],
   }) async {
     final response = await _apiService.post(
       '/jobs',
@@ -147,10 +149,12 @@ class JobsApiService {
                   draft.operationType,
                 ),
                 'note': draft.note,
+                'spareParts': draft.spareParts.map((p) => p.toMap()).toList(),
               },
             )
             .toList(),
         'generalNotes': generalNotes,
+        'requiredParts': requiredParts,
       },
     );
     return _jobOrderFromJson(response.data['data'] ?? response.data);
@@ -186,6 +190,7 @@ class JobsApiService {
     required VehicleArea area,
     required JobOperationType operationType,
     String? note,
+    String? partName,
   }) async {
     final response = await _apiService.post(
       '/jobs/$jobId/tasks',
@@ -193,6 +198,7 @@ class JobsApiService {
         'area': EnumMapper.vehicleAreaToBackend(area),
         'operationType': EnumMapper.jobOperationTypeToBackend(operationType),
         if (note != null) 'note': note,
+        if (partName != null) 'partName': partName,
       },
     );
     return _jobOrderFromJson(response.data['data'] ?? response.data);
@@ -644,6 +650,11 @@ class JobsApiService {
       generalNotes: json['generalNotes'] as String?,
       isVehicleAvailable: json['isVehicleAvailable'] as bool? ?? true,
       vehicleStage: json['vehicleStage'] as String?,
+      requiredParts:
+          (json['requiredParts'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -674,6 +685,11 @@ class JobsApiService {
         json['operationType'] as String,
       ),
       note: json['note'] as String?,
+      spareParts:
+          (json['spareParts'] as List<dynamic>?)
+              ?.map((p) => SparePartItem.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          [],
       status: EnumMapper.jobTaskStatusFromBackend(json['status'] as String),
       // Tarihleri parse et (null olabilir)
       startedAt: json['startedAt'] != null
@@ -852,7 +868,8 @@ class JobsApiService {
     required String jobId,
     required String taskId,
   }) async {
-    final response = await _apiService.patch(
+    // Backend route is POST /jobs/{job_id}/tasks/{task_id}/assign
+    final response = await _apiService.post(
       '/jobs/$jobId/tasks/$taskId/assign',
     );
 
@@ -931,6 +948,18 @@ class JobsApiService {
     final jobsData = response.data?['data'] ?? [];
     return (jobsData as List<dynamic>)
         .map((job) => _jobOrderFromJson(job as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Get available workers for kiosk mode auto-assignment
+  Future<List<Map<String, dynamic>>> getAvailableWorkers() async {
+    final response = await _apiService.get<Map<String, dynamic>>(
+      '/jobs/workers/available',
+    );
+
+    final workersData = response.data?['data'] ?? [];
+    return (workersData as List<dynamic>)
+        .map((worker) => worker as Map<String, dynamic>)
         .toList();
   }
 }

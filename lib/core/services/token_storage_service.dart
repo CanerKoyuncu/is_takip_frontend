@@ -10,6 +10,7 @@
 /// - Token'ları temizleme
 /// - Async işlemler
 /// - Web platformu için fallback mekanizması
+library;
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';

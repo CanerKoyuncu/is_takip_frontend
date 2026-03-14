@@ -89,7 +89,22 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
           status: JobTaskStatus.pending,
         );
 
-        await provider.addTaskToJob(jobId: widget.jobId, task: task);
+        // Parça adını bul (sokTak işlemi ise backend'e gönderilecek)
+        String? partName;
+        final part = _parts?.firstWhere(
+          (p) => VehiclePartMapper.partIdToVehicleArea(p.id) == draft.area,
+          orElse: () =>
+              _parts!.first, // Fallback (aslında area eşleşmesi beklenir)
+        );
+        if (part != null) {
+          partName = part.displayName;
+        }
+
+        await provider.addTaskToJob(
+          jobId: widget.jobId,
+          task: task,
+          partName: partName,
+        );
       }
 
       if (mounted) {

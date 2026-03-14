@@ -32,6 +32,7 @@ import '../../features/jobs/presentation/screens/workers/my_tasks_screen.dart';
 import '../../features/jobs/presentation/screens/workers/available_tasks_screen.dart';
 import '../../features/jobs/presentation/screens/workers/all_assigned_tasks_screen.dart';
 import '../../features/jobs/presentation/screens/workers/pending_tasks_screen.dart';
+import '../../features/jobs/presentation/screens/supply_screen.dart';
 
 /// Uygulama router sınıfı
 ///
@@ -88,7 +89,13 @@ class AppRouter {
       // Kullanıcı giriş yapmış ve login sayfasındaysa
       // Dashboard'a yönlendir (çift giriş yapmaya çalışıyorsa)
       if (loggingIn) {
-        return '/dashboard';
+        return '/dashboard/job-orders';
+      }
+
+      // Kullanıcı giriş yapmış ve dashboard ana sayfasındaysa
+      // İş emirleri sayfasına yönlendir
+      if (currentPath == '/dashboard') {
+        return '/dashboard/job-orders';
       }
 
       // Personel yönetimi sayfasına erişim kontrolü
@@ -280,6 +287,12 @@ class AppRouter {
               }
               return const PendingTasksScreen();
             },
+          ),
+          // Parça tedarik takibi sayfası
+          GoRoute(
+            path: '/supply-tracking',
+            name: 'supply-tracking',
+            builder: (context, state) => const SupplyScreen(),
           ),
         ],
       ),

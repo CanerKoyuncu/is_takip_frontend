@@ -1,6 +1,7 @@
 /// Action Card Widget
 ///
 /// Tıklanabilir action card widget'ı. Dashboard ve menü ekranlarında kullanılır.
+library;
 
 import 'package:flutter/material.dart';
 

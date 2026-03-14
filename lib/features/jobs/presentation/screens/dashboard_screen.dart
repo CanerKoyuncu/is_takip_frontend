@@ -54,6 +54,15 @@ class DashboardScreen extends StatelessWidget {
                   color: scheme.secondaryContainer,
                   onTap: () => context.go('/dashboard/vehicle-parts'),
                 ),
+                const SizedBox(height: 12),
+                _DashboardCard(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Parça Tedarik Takibi',
+                  description:
+                      'Tüm işlerdeki yedek parçaları takip edin ve arayın',
+                  color: scheme.tertiaryContainer,
+                  onTap: () => context.go('/dashboard/supply-tracking'),
+                ),
               ],
               const SizedBox(height: 24),
 

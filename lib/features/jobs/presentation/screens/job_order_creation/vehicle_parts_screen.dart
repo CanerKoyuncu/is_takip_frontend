@@ -15,6 +15,7 @@ import '../../../utils/task_category_styles.dart';
 import '../../../utils/vehicle_part_mapper.dart';
 import '../../widgets/vehicle_damage_map.dart';
 import '../../widgets/vehicle_damage_map/vehicle_action_sheet.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart' show PartSparePartsMap;
 
 /// İş Emri Oluşturma Sayfası
 /// Araç hasar haritası, araç/müşteri bilgileri ve notlar tek sayfada
@@ -50,6 +51,7 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
   ];
 
   VehiclePartSelections _selections = {};
+  PartSparePartsMap _sparePartsSelections = {};
   List<VehiclePart>? _parts;
   String? _selectedPartId;
   bool _isLoading = false;
@@ -145,9 +147,13 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
         '[VehiclePartsScreen] Creating job order with ${_selections.length} selections',
       );
       debugPrint('[VehiclePartsScreen] Selections: $_selections');
+      debugPrint(
+        '[VehiclePartsScreen] Spare Parts: ${_sparePartsSelections.length} parts',
+      );
       var taskDrafts = VehiclePartMapper.selectionsToTaskDrafts(
         _selections,
         _parts!,
+        sparePartsSelections: _sparePartsSelections,
       );
       debugPrint(
         '[VehiclePartsScreen] Generated ${taskDrafts.length} task drafts',
@@ -219,11 +225,32 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
       }
 
       final provider = context.read<JobsProvider>();
+
+      // Her parça için "Değişim" (sokTak) işlemi seçilmişse, onu requiredParts listesine ekle
+      final requiredParts = <String>[];
+      _selections.forEach((partId, actions) {
+        final hasReplacement = actions.any((action) {
+          final opType = VehiclePartMapper.damageActionToOperationType(action);
+          return opType == JobOperationType.sokTak ||
+              opType == JobOperationType.change;
+        });
+
+        if (hasReplacement) {
+          final part = _parts?.firstWhere((p) => p.id == partId);
+          if (part != null) {
+            requiredParts.add(part.displayName);
+          }
+        }
+      });
+      debugPrint(
+        '[VehiclePartsScreen] Automatically identified ${requiredParts.length} parts for replacement: $requiredParts',
+      );
+
       await provider.createJob(
         vehicle: vehicle,
-
         taskDrafts: taskDrafts,
         generalNotes: generalNotes,
+        requiredParts: requiredParts,
       );
 
       if (!mounted) return;
@@ -372,23 +399,23 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
 
   Future<void> _showPartActionSheet(VehiclePart part) async {
     final currentActions = List<String>.from(_selections[part.id] ?? []);
-    final updatedActions = await showModalBottomSheet<List<String>>(
+    final result = await showModalBottomSheet<VehicleActionSheetResult>(
       context: context,
       isScrollControlled: true,
       builder: (context) =>
           VehicleActionSheet(part: part, selectedActions: currentActions),
     );
 
-    if (!mounted || updatedActions == null) {
+    if (!mounted || result == null) {
       return;
     }
 
     setState(() {
       final next = _cloneSelections(_selections);
-      if (updatedActions.isEmpty) {
+      if (result.selectedActions.isEmpty) {
         next.remove(part.id);
       } else {
-        next[part.id] = List<String>.from(updatedActions);
+        next[part.id] = List<String>.from(result.selectedActions);
       }
       _selections = next;
       _selectedPartId = part.id;
@@ -511,10 +538,19 @@ class _VehiclePartsScreenState extends State<VehiclePartsScreen> {
                                     setState(() {
                                       _selections = _cloneSelections(updated);
                                     });
-                                    debugPrint(
-                                      '[VehiclePartsScreen] _selections state updated: ${_selections.length} parts',
-                                    );
                                   },
+                                  onSparePartsChanged: (updatedSpareParts) {
+                                    debugPrint(
+                                      '[VehiclePartsScreen] Spare parts updated: ${updatedSpareParts.length} parts',
+                                    );
+                                    setState(() {
+                                      _sparePartsSelections = Map.from(
+                                        updatedSpareParts,
+                                      );
+                                    });
+                                  },
+                                  initialSparePartsSelections:
+                                      _sparePartsSelections,
                                   onPartTap: (part) {
                                     setState(() {
                                       _selectedPartId = part.id;

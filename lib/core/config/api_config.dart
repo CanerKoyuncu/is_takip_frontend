@@ -44,8 +44,8 @@ class ApiConfig {
       url = envUrl;
     } else {
       // Sonra .env dosyasından oku
-      final dotenvUrl = dotenv.env['API_BASE_URL'];
-      if (dotenvUrl != null && dotenvUrl.isNotEmpty) {
+      final dotenvUrl = _getEnv('API_BASE_URL');
+      if (dotenvUrl != null) {
         url = dotenvUrl;
       } else {
         // Default: Debug -> localhost, Release/Profile -> production domain
@@ -87,8 +87,8 @@ class ApiConfig {
     if (envKey.isNotEmpty) return envKey;
 
     // Sonra .env dosyasından oku
-    final dotenvKey = dotenv.env['API_KEY'];
-    if (dotenvKey != null && dotenvKey.isNotEmpty) return dotenvKey;
+    final dotenvKey = _getEnv('API_KEY');
+    if (dotenvKey != null) return dotenvKey;
 
     // Envied ile build-time'da gömülen değer (fallback)
     final generatedKey = Env.apiKey;
@@ -103,4 +103,12 @@ class ApiConfig {
   /// HTTP isteklerinde API key'in gönderileceği header ismini belirtir.
   /// Backend bu header'ı kontrol ederek kimlik doğrulama yapar.
   static const String apiKeyHeader = 'X-API-Key';
+
+  /// Dotenv yalnızca yüklenmişse oku; web'de NotInitializedError'u önler.
+  static String? _getEnv(String key) {
+    if (!dotenv.isInitialized) return null;
+    final value = dotenv.env[key];
+    if (value == null || value.isEmpty) return null;
+    return value;
+  }
 }

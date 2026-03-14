@@ -175,6 +175,8 @@ class EnumMapper {
       // Yeni değerler - Kaporta
       case 'sokTak':
         return JobOperationType.sokTak;
+      case 'change':
+        return JobOperationType.change;
       case 'onarim':
         return JobOperationType.onarim;
       case 'doseme':
@@ -198,7 +200,7 @@ class EnumMapper {
       case 'paint':
         return JobOperationType.yeniBoya; // Eski paint -> yeni yeniBoya
       case 'replacement':
-        return JobOperationType.sokTak; // Eski replacement -> yeni sokTak
+        return JobOperationType.change; // Eski replacement -> yeni change
       case 'polish':
         return JobOperationType.pasta; // Eski polish -> yeni pasta
       case 'other':

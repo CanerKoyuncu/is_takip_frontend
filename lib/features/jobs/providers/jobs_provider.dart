@@ -233,6 +233,7 @@ class JobsProvider extends ChangeNotifier {
     required VehicleInfo vehicle,
     required List<JobTaskDraft> taskDrafts,
     String? generalNotes,
+    List<String> requiredParts = const [],
   }) async {
     _setLoading(true);
     _setError(null);
@@ -243,6 +244,7 @@ class JobsProvider extends ChangeNotifier {
         vehicle: vehicle,
         taskDrafts: taskDrafts,
         generalNotes: generalNotes,
+        requiredParts: requiredParts,
       );
 
       // Başarılı olursa cache'in başına ekle (en yeni en üstte)
@@ -813,6 +815,7 @@ class JobsProvider extends ChangeNotifier {
   Future<void> addTaskToJob({
     required String jobId,
     required JobTask task,
+    String? partName,
   }) async {
     _setLoading(true);
     _setError(null);
@@ -824,6 +827,7 @@ class JobsProvider extends ChangeNotifier {
         area: task.area,
         operationType: task.operationType,
         note: task.note,
+        partName: partName,
       );
 
       // Cache'i güncelle
@@ -1084,6 +1088,17 @@ class JobsProvider extends ChangeNotifier {
       return note;
     } catch (e) {
       _setError('Not kaydedilirken hata oluştu: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  /// Get available workers for kiosk mode auto-assignment
+  Future<List<Map<String, dynamic>>> getAvailableWorkers() async {
+    try {
+      final response = await _jobsApiService.getAvailableWorkers();
+      return response;
+    } catch (e) {
+      _setError('Usta listesi alınırken hata oluştu: ${e.toString()}');
       rethrow;
     }
   }

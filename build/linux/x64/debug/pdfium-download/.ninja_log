@@ -1,0 +1,21 @@
+# ninja log v5
+16	2125	1773499824526081597	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-download	2bcfa606b80601b6
+2207	2226	1773499824627081530	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-done	e8f65ea481ea1b58
+2125	2140	1773499824541081587	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-update	3c3ede2aa09fcc3a
+2140	2153	1773499824554081578	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-patch	bf3821fff612314f
+2207	2226	1773499824627081530	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-done	e8f65ea481ea1b58
+2194	2207	1773499824607081543	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-test	19538652e4e9dc86
+2153	2167	1773499824567081569	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-configure	dbce36e573ffaa44
+2167	2179	1773499824580081561	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-build	d8131940bd9ce4d2
+2153	2167	1773499824567081569	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-configure	dbce36e573ffaa44
+2207	2226	1773499824627081530	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/CMakeFiles/pdfium-download-complete	e8f65ea481ea1b58
+2179	2194	1773499824594081552	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-install	fab1da1b206446dd
+2207	2226	1773499824627081530	CMakeFiles/pdfium-download-complete	e8f65ea481ea1b58
+0	15	1773499822416082985	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-mkdir	2351b2bf9da46655
+2140	2153	1773499824554081578	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-patch	bf3821fff612314f
+16	2125	1773499824526081597	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-download	2bcfa606b80601b6
+0	15	1773499822416082985	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-mkdir	2351b2bf9da46655
+2179	2194	1773499824594081552	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-install	fab1da1b206446dd
+2194	2207	1773499824607081543	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-test	19538652e4e9dc86
+2167	2179	1773499824580081561	/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-build	d8131940bd9ce4d2
+2125	2140	1773499824541081587	pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-update	3c3ede2aa09fcc3a

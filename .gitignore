@@ -117,6 +117,3 @@ secrets/
 .vscode/settings.json
 assets/fonts/
 .dart_tool/*
-.dart_tool
-build/*
-.dart_tool/*

@@ -1,0 +1,31 @@
+<variant
+    name="release"
+    package="net.nfet.flutter.printing"
+    minSdkVersion="21"
+    targetSdkVersion="21"
+    mergedManifest="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml"
+    manifestMergeReport="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/outputs/logs/manifest-merger-release-report.txt"
+    proguardFiles="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/intermediates/default_proguard_files/global/proguard-android.txt-8.9.1"
+    partialResultsDir="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/intermediates/lint_partial_results/release/lintAnalyzeRelease/out">
+  <buildFeatures
+      namespacing="REQUIRED"/>
+  <sourceProviders>
+    <sourceProvider
+        manifests="src/main/AndroidManifest.xml"
+        javaDirectories="src/main/java:src/release/java:src/main/kotlin:src/release/kotlin"
+        resDirectories="src/main/res:src/release/res"
+        assetsDirectories="src/main/assets:src/release/assets"/>
+  </sourceProviders>
+  <testSourceProviders>
+  </testSourceProviders>
+  <testFixturesSourceProviders>
+  </testFixturesSourceProviders>
+  <artifact
+      classOutputs="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/intermediates/javac/release/compileReleaseJavaWithJavac/classes:/home/caner/projects/yilbasi/is_takip/frontend/build/printing/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar"
+      type="MAIN"
+      applicationId="net.nfet.flutter.printing"
+      generatedSourceFolders="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/generated/ap_generated_sources/release/out"
+      generatedResourceFolders="/home/caner/projects/yilbasi/is_takip/frontend/build/printing/generated/res/resValues/release"
+      desugaredMethodsFiles="/home/caner/.gradle/caches/8.12/transforms/84d866523f6172d2337c13b66ac1bbaf/transformed/D8BackportedDesugaredMethods.txt">
+  </artifact>
+</variant>

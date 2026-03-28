@@ -1,0 +1,14 @@
+# Target labels
+ pdfium-download
+# Source files and their labels
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/CMakeFiles/pdfium-download
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/CMakeFiles/pdfium-download.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/CMakeFiles/pdfium-download-complete.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-build.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-configure.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-download.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-install.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-mkdir.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-patch.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-test.rule
+/home/caner/projects/yilbasi/is_takip/frontend/build/linux/x64/debug/pdfium-download/pdfium-download-prefix/src/pdfium-download-stamp/pdfium-download-update.rule

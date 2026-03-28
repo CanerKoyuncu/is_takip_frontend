@@ -1,18 +1,18 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart';
 import '../models/reception_models.dart';
-import 'pdf/pdf_styles.dart';
 import 'pdf/pdf_base_service.dart';
 import 'pdf/pdf_report_metadata.dart';
+import 'pdf/pdf_styles.dart';
 import 'pdf/pdf_builders/pdf_header_builder.dart';
 import 'pdf/pdf_builders/pdf_job_info_builder.dart';
 import 'pdf/pdf_builders/pdf_vehicle_info_builder.dart';
-import 'pdf/pdf_builders/pdf_footer_builder.dart';
+import 'pdf_web_helper_stub.dart' if (dart.library.html) 'pdf_web_helper.dart';
 
 /// Araç Kabul Rapor Servisi
 ///
@@ -20,6 +20,73 @@ import 'pdf/pdf_builders/pdf_footer_builder.dart';
 /// İş Emri PDF yapısıyla görsel olarak uyumludur.
 class ReceptionReportService {
   ReceptionReportService._();
+
+  static const Map<String, String> _labelToAction = {
+    'vuruk': 'tespit:vuruk',
+    'göçük': 'tespit:gocuk',
+    'gocuk': 'tespit:gocuk',
+    'çizik': 'tespit:cizik',
+    'cizik': 'tespit:cizik',
+    'sürtme': 'tespit:surtuk',
+    'sürtük': 'tespit:surtuk',
+    'surtme': 'tespit:surtuk',
+    'surtuk': 'tespit:surtuk',
+    'leke': 'tespit:leke',
+    'kırık': 'tespit:kirik',
+    'kirik': 'tespit:kirik',
+  };
+
+  static String _normalizeActionOrLabel(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return value;
+
+    if (value.contains(':')) return canonicalDamageActionKey(value);
+
+    final mapped = _labelToAction[value.toLowerCase()];
+    if (mapped != null) return canonicalDamageActionKey(mapped);
+
+    return value;
+  }
+
+  static String _damageLabel(String raw) {
+    final normalized = _normalizeActionOrLabel(raw);
+    if (normalized.contains(':')) return damageActionLabel(normalized);
+    return normalized;
+  }
+
+  static String _formatFallbackId(String rawId) {
+    final clean = rawId.trim();
+    if (clean.isEmpty) return 'Genel';
+    return clean
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((p) => p.isNotEmpty)
+        .map((p) => p[0].toUpperCase() + p.substring(1))
+        .join(' ');
+  }
+
+  static String _displayPartName({String? partName, String? partId}) {
+    final id = (partId ?? '').trim();
+    if (id.isNotEmpty) {
+      final byId = VehiclePartsRegistry.byId(id);
+      if (byId != null) return byId.name;
+    }
+
+    final name = (partName ?? '').trim();
+    if (name.isNotEmpty) {
+      final byName = VehiclePartsRegistry.byId(name);
+      if (byName != null) return byName.name;
+
+      final looksTechnical =
+          name.contains('-') || name.contains('_') || name.startsWith('path');
+      if (!looksTechnical) return name;
+      return _formatFallbackId(name);
+    }
+
+    if (id.isNotEmpty) return _formatFallbackId(id);
+    return 'Genel';
+  }
 
   static Future<void> generateAndShowReport({
     required String plate,
@@ -30,7 +97,6 @@ class ReceptionReportService {
     String? generalNotes,
   }) async {
     try {
-      // 1. Kaynakları yükle
       await PdfBaseService.ensureFontsLoaded();
       await PdfBaseService.ensureLogoLoaded();
 
@@ -38,72 +104,52 @@ class ReceptionReportService {
       final boldFont = PdfBaseService.boldFont;
       final logoImage = PdfBaseService.logoImage;
 
-      // 2. PDF Dokümanı oluştur
-      final pdf = pw.Document(theme: PdfBaseService.getTheme());
-
-      // 3. Meta verileri hazırla
+      final reportId = DateTime.now().millisecondsSinceEpoch.toString();
       final metadata = PdfReportMetadata(
-        title: 'ARAÇ KABUL VE EKSPERTİZ RAPORU',
-        reportId:
-            'KABUL-${DateFormat('yyyyMMdd').format(DateTime.now())}-${plate.replaceAll(' ', '')}',
+        title: 'ARAÇ KABUL RAPORU',
+        reportId: reportId.length >= 8 ? reportId.substring(reportId.length - 8) : reportId,
         createdAt: DateTime.now(),
-        statusLabel: 'YENİ KABUL',
-        statusColor: PdfColors.blue600,
+        statusLabel: 'KABUL',
+        statusColor: PdfColors.blue700,
         plate: plate,
         brand: brand,
         model: model,
       );
 
-      // 4. Fotoğrafları yükle (1:1 eşleşme için null ekleyerek)
-      final List<pw.ImageProvider?> loadedPhotos = [];
-      debugPrint(
-        '📸 Araç Kabul fotoğrafları yükleniyor (${photos.length} adet)...',
+      final loadedPhotos = await Future.wait(
+        photos.map(_loadPhotoBytes),
+      );
+      final photoProviders = loadedPhotos
+          .whereType<Uint8List>()
+          .map((bytes) => pw.MemoryImage(bytes))
+          .toList();
+
+      final pdf = pw.Document(theme: PdfBaseService.getTheme());
+      final selectionCount = selections.values.fold<int>(
+        0,
+        (sum, value) => sum + (value as Iterable).length,
       );
 
-      for (int i = 0; i < photos.length; i++) {
-        final photo = photos[i];
-        final bytes = await _loadPhotoBytes(photo);
-        if (bytes != null) {
-          loadedPhotos.add(pw.MemoryImage(bytes));
-          debugPrint('✓ Fotoğraf $i yüklendi: ${photo.displayPath}');
-        } else {
-          loadedPhotos.add(null);
-          debugPrint('⚠ Fotoğraf $i yüklenemedi: ${photo.displayPath}');
-        }
-      }
-
-      // 5. PDF Sayfası oluştur
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(40),
-          build: (pw.Context context) {
+          build: (context) {
             return [
-              // Başlık (Logo ve Başlık)
-              PdfHeaderBuilder.build(
-                metadata,
-                regularFont,
-                boldFont,
-                logoImage,
-              ),
-              pw.SizedBox(height: 15),
-
-              // Kabul Bilgileri
+              PdfHeaderBuilder.build(metadata, regularFont, boldFont, logoImage),
+              pw.SizedBox(height: 20),
               PdfInfoSectionBuilder.build(
                 title: 'Kabul Bilgileri',
                 data: {
-                  'Kabul Tarihi': DateFormat(
-                    'dd.MM.yyyy HH:mm',
-                  ).format(DateTime.now()),
-                  'Tespit Sayısı': '${selections.length} bölge',
-                  'Fotoğraf Sayısı': '${photos.length} adet',
+                  'Rapor Tarihi': DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now()),
+                  'Tespit Bölgesi': '${selections.length} parça',
+                  'Toplam Tespit': '$selectionCount adet',
+                  'Toplam Fotoğraf': '${photos.length} adet',
                 },
                 regularFont: regularFont,
                 boldFont: boldFont,
               ),
-              pw.SizedBox(height: 15),
-
-              // Araç Bilgileri
+              pw.SizedBox(height: 20),
               PdfVehicleInfoBuilder.build(
                 plate: plate,
                 brand: brand,
@@ -111,78 +157,59 @@ class ReceptionReportService {
                 regularFont: regularFont,
                 boldFont: boldFont,
               ),
-              pw.SizedBox(height: 15),
-
-              // Hasar Özeti
               if (selections.isNotEmpty) ...[
+                pw.SizedBox(height: 20),
                 _buildDamageSummarySection(selections, regularFont, boldFont),
-                pw.SizedBox(height: 15),
               ],
-
-              // Genel Notlar
-              if (generalNotes != null && generalNotes.isNotEmpty) ...[
-                _buildNotesSection(generalNotes, regularFont, boldFont),
-                pw.SizedBox(height: 15),
-              ],
-
-              // Fotoğraflı Tespitler
               if (photos.isNotEmpty) ...[
-                _buildPhotoSection(photos, loadedPhotos, regularFont, boldFont),
-                pw.SizedBox(height: 15),
+                pw.SizedBox(height: 20),
+                _buildPhotoSection(photos, photoProviders, regularFont, boldFont),
               ],
-
-              // Alt Bilgi
-              PdfFooterBuilder.build(
-                stats: {
-                  'İşaretli Bölge': selections.length,
-                  'Fotoğraflar': photos.length,
-                },
-                regularFont: regularFont,
-                boldFont: boldFont,
-              ),
+              if (generalNotes != null && generalNotes.trim().isNotEmpty) ...[
+                pw.SizedBox(height: 20),
+                _buildNotesSection(generalNotes, regularFont, boldFont),
+              ],
             ];
           },
         ),
       );
 
-      // 6. PDF'i göster/paylaş
+      final pdfBytes = await pdf.save();
+
       final filename = 'ekspertiz_${plate.replaceAll(' ', '_')}.pdf';
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-        name: filename,
-      );
-    } catch (e) {
-      debugPrint('❌ Araç Kabul PDF hatası: $e');
-    }
-  }
 
-  /// Fotoğraf verisini yükler
-  static Future<Uint8List?> _loadPhotoBytes(ReceptionPhoto photo) async {
-    try {
-      if (kIsWeb) {
-        // Web'de genellikle blob URL veya base64 kullanılır
-        return null;
-      } else {
-        // file:// protokolünü temizle
-        String path = photo.displayPath;
-        if (path.startsWith('file://')) {
-          path = Uri.parse(path).toFilePath();
-        }
-
-        final file = File(path);
-        if (await file.exists()) {
-          return await file.readAsBytes();
+      // Öncelik: tüm platformlarda native print/layout akışını kullan.
+      // Web'de popup blocker durumunda fallback olarak yeni sekmede aç.
+      try {
+        await Printing.layoutPdf(
+          onLayout: (format) async => pdfBytes,
+          name: filename,
+        );
+      } catch (_) {
+        if (kIsWeb) {
+          openPdfInNewWindow(pdfBytes, filename);
         } else {
-          debugPrint('⚠ Dosya bulunamadı: $path');
+          rethrow;
         }
       }
     } catch (e) {
-      debugPrint('Fotoğraf yükleme hatası (${photo.displayPath}): $e');
+      debugPrint('❌ Araç Kabul PDF hatası: $e');
+      rethrow;
     }
+  }
+
+  static Future<Uint8List?> _loadPhotoBytes(ReceptionPhoto photo) async {
+    try {
+      final file = XFile(photo.displayPath);
+      final bytes = await file.readAsBytes();
+      if (bytes.isNotEmpty) return bytes;
+    } catch (e) {
+      debugPrint('⚠ XFile ile fotoğraf okunamadı (${photo.displayPath}): $e');
+    }
+
     return null;
   }
 
-  /// Hasar Özeti Bölümü
   static pw.Widget _buildDamageSummarySection(
     VehiclePartSelections selections,
     pw.Font regularFont,
@@ -198,7 +225,7 @@ class ReceptionReportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Hasar Haritası Tespiti',
+            'Hasar Özeti',
             style: PdfStyles.textStyle(
               regularFont: regularFont,
               boldFont: boldFont,
@@ -211,6 +238,12 @@ class ReceptionReportService {
             spacing: 12,
             runSpacing: 6,
             children: selections.entries.map((entry) {
+              final damageLabels = (entry.value as Iterable)
+                  .map((item) => _damageLabel(item.toString().split('.').last))
+                  .toList()
+                  .join(', ');
+              final displayPartName = _displayPartName(partId: entry.key);
+
               return pw.Container(
                 width: 240,
                 child: pw.Row(
@@ -230,7 +263,7 @@ class ReceptionReportService {
                         text: pw.TextSpan(
                           children: [
                             pw.TextSpan(
-                              text: '${entry.key}: ',
+                              text: '$displayPartName: ',
                               style: PdfStyles.textStyle(
                                 regularFont: regularFont,
                                 boldFont: boldFont,
@@ -239,7 +272,7 @@ class ReceptionReportService {
                               ),
                             ),
                             pw.TextSpan(
-                              text: entry.value.join(', '),
+                              text: damageLabels,
                               style: PdfStyles.textStyle(
                                 regularFont: regularFont,
                                 boldFont: boldFont,
@@ -260,7 +293,6 @@ class ReceptionReportService {
     );
   }
 
-  /// Notlar Bölümü
   static pw.Widget _buildNotesSection(
     String notes,
     pw.Font regularFont,
@@ -299,10 +331,9 @@ class ReceptionReportService {
     );
   }
 
-  /// Fotoğraf Bölümü
   static pw.Widget _buildPhotoSection(
     List<ReceptionPhoto> photoMetadata,
-    List<pw.ImageProvider?> loadedPhotos, // Nullable yapıldı
+    List<pw.ImageProvider> loadedPhotos,
     pw.Font regularFont,
     pw.Font boldFont,
   ) {
@@ -324,9 +355,7 @@ class ReceptionReportService {
           runSpacing: 12,
           children: List.generate(photoMetadata.length, (index) {
             final photo = photoMetadata[index];
-            final image = index < loadedPhotos.length
-                ? loadedPhotos[index]
-                : null;
+            final image = index < loadedPhotos.length ? loadedPhotos[index] : null;
 
             return pw.Container(
               width: 165,
@@ -339,7 +368,10 @@ class ReceptionReportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    photo.partName ?? 'Genel Görünüm',
+                    _displayPartName(
+                      partName: photo.partName,
+                      partId: photo.partId,
+                    ),
                     style: PdfStyles.textStyle(
                       regularFont: regularFont,
                       boldFont: boldFont,
@@ -350,7 +382,7 @@ class ReceptionReportService {
                   ),
                   if (photo.damageTypes.isNotEmpty)
                     pw.Text(
-                      photo.damageTypes.join(', '),
+                      photo.damageTypes.map(_damageLabel).join(', '),
                       style: PdfStyles.textStyle(
                         regularFont: regularFont,
                         boldFont: boldFont,
@@ -371,7 +403,7 @@ class ReceptionReportService {
                         ? pw.Image(image, fit: pw.BoxFit.cover)
                         : pw.Center(
                             child: pw.Text(
-                              'Fotoğraf Yok',
+                              'Fotoğraf Yüklenemedi',
                               style: pw.TextStyle(
                                 fontSize: 8,
                                 color: PdfColors.grey500,

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,10 +8,13 @@ import 'package:vehicle_damage_map/vehicle_damage_map.dart'
         VehiclePartSelections,
         DamageOperationType,
         VehiclePartsRegistry,
-        damageActionLabel;
+    damageActionLabel,
+    damageActionColor;
 import '../../../models/reception_models.dart';
 import '../../../services/job_creation_cache_service.dart';
+import '../../../services/reception_api_service.dart';
 import '../../../services/reception_report_service.dart';
+import '../../../../../core/services/api_service_factory.dart';
 import 'photo_annotation_screen.dart';
 
 /// Araç giriş kayıt ekranı (Teslim Alma).
@@ -32,14 +34,18 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
 
   final ImagePicker _imagePicker = ImagePicker();
   final _cacheService = JobCreationCacheService();
+  late final ReceptionApiService _receptionApi;
 
   List<ReceptionPhoto> _photos = [];
   VehiclePartSelections _damageSelections = {};
+  String? _activePartId;
+  String? _activePartName;
   bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _receptionApi = ReceptionApiService(ApiServiceFactory.getApiService());
     _loadDraft();
   }
 
@@ -77,7 +83,8 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
   Future<void> _addPhoto({
     String? partId,
     String? partName,
-    String? damageType,
+    List<String> damageTypes = const [],
+    List<String> damageActions = const [],
   }) async {
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -95,25 +102,115 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
         MaterialPageRoute(
           builder: (context) => PhotoAnnotationScreen(
             imagePath: image.path,
-            initialNote: partName != null ? '$partName - $damageType' : null,
+            initialNote: partName,
+            damageActions: damageActions,
           ),
         ),
       );
 
       setState(() {
-        _photos.add(
-          ReceptionPhoto(
-            originalPath: image.path,
-            annotatedPath: annotatedPath,
-            partId: partId,
-            partName: partName,
-            damageTypes: damageType != null ? [damageType] : [],
-          ),
+        final newPhoto = ReceptionPhoto(
+          originalPath: image.path,
+          annotatedPath: annotatedPath,
+          partId: partId,
+          partName: partName,
+          damageTypes: damageTypes,
         );
+
+        // Parça bazında tek fotoğraf: aynı parçaya tekrar fotoğraf çekilirse eskisini güncelle.
+        if (partId != null) {
+          final existingIndex = _photos.indexWhere((p) => p.partId == partId);
+          if (existingIndex >= 0) {
+            _photos[existingIndex] = newPhoto;
+          } else {
+            _photos.add(newPhoto);
+          }
+        } else {
+          _photos.add(newPhoto);
+        }
       });
       _saveDraft();
     } catch (e) {
       debugPrint('Error adding photo: $e');
+    }
+  }
+
+  List<String> _activeDamageLabels() {
+    final partId = _activePartId;
+    if (partId == null) return const [];
+
+    final actions = _damageSelections[partId] ?? const [];
+    return actions.map((action) => damageActionLabel(action)).toList();
+  }
+
+  List<String> _activeDamageActions() {
+    final partId = _activePartId;
+    if (partId == null) return const [];
+    return List<String>.from(_damageSelections[partId] ?? const []);
+  }
+
+  Future<void> _completeDetectionWithPhoto() async {
+    final partId = _activePartId;
+    if (partId == null) return;
+
+    final damageLabels = _activeDamageLabels();
+    final damageActions = _activeDamageActions();
+    if (damageLabels.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Önce seçili parça için en az bir hasar tespiti işaretleyin.'),
+        ),
+      );
+      return;
+    }
+
+    await _addPhoto(
+      partId: partId,
+      partName: _activePartName,
+      damageTypes: damageLabels,
+      damageActions: damageActions,
+    );
+  }
+
+  Future<void> _saveReceptionForm() async {
+    final plate = _plateController.text.trim();
+    final brand = _brandController.text.trim();
+    final model = _modelController.text.trim();
+
+    if (plate.isEmpty || brand.isEmpty || model.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lütfen plaka, marka ve model alanlarını doldurun.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final insertedId = await _receptionApi.saveForm(
+        plate: plate,
+        brand: brand,
+        model: model,
+        selections: _damageSelections,
+        photos: _photos.map((p) => p.toMap()).toList(),
+        generalNotes: _generalNoteController.text.trim(),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Kabul formu kaydedildi. Kayıt No: $insertedId'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Kabul formu kaydedilemedi: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -125,6 +222,9 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
         builder: (context) => PhotoAnnotationScreen(
           imagePath: photo.originalPath,
           initialNote: photo.note,
+          damageActions: photo.partId != null
+              ? List<String>.from(_damageSelections[photo.partId] ?? const [])
+              : const [],
         ),
       ),
     );
@@ -261,14 +361,26 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                 width: double.infinity,
                 height: 50,
                 child: FilledButton.icon(
-                  onPressed: () => ReceptionReportService.generateAndShowReport(
-                    plate: _plateController.text,
-                    brand: _brandController.text,
-                    model: _modelController.text,
-                    selections: _damageSelections,
-                    photos: _photos,
-                    generalNotes: _generalNoteController.text,
-                  ),
+                  onPressed: () async {
+                    try {
+                      await ReceptionReportService.generateAndShowReport(
+                        plate: _plateController.text.trim(),
+                        brand: _brandController.text.trim(),
+                        model: _modelController.text.trim(),
+                        selections: _damageSelections,
+                        photos: _photos,
+                        generalNotes: _generalNoteController.text.trim(),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('PDF oluşturulurken hata: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.picture_as_pdf),
                   label: const Text('ARAÇ KABUL RAPORU (PDF)'),
                   style: FilledButton.styleFrom(
@@ -366,32 +478,22 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                               child: VehicleDamageMap(
                                 assetName: 'assets/car-cutout-grouped.svg',
                                 initialSelections: _damageSelections,
-                                showLegend: false,
+                                showLegend: true,
                                 showSpareParts: false,
                                 availableActions: const [
                                   DamageOperationType.vuruk,
+                                  DamageOperationType.gocuk,
                                   DamageOperationType.cizik,
                                   DamageOperationType.surtuk,
                                   DamageOperationType.leke,
                                   DamageOperationType.kirik,
                                 ],
-                                onActionToggled: (partId, action, selected) {
-                                  if (selected) {
-                                    // Parça ismini bulup kamerayı aç
-                                    final partName =
-                                        VehiclePartsRegistry.byId(
-                                          partId,
-                                        )?.name ??
-                                        partId;
-                                    final damageLabel = damageActionLabel(
-                                      action,
-                                    );
-                                    _addPhoto(
-                                      partId: partId,
-                                      partName: partName,
-                                      damageType: damageLabel,
-                                    );
-                                  }
+                                onPartTapped: (partId) {
+                                  setState(() {
+                                    _activePartId = partId;
+                                    _activePartName =
+                                        VehiclePartsRegistry.byId(partId)?.name ?? partId;
+                                  });
                                 },
                                 onSelectionsChanged: (selections) {
                                   setState(
@@ -411,6 +513,56 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                               color: Colors.grey,
                             ),
                           ),
+                          if (_activePartId != null) ...[
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Seçili Parça: ${_activePartName ?? _activePartId}',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: (_damageSelections[_activePartId] ?? const [])
+                                  .map((action) {
+                                final color = damageActionColor(action) ?? Colors.blueGrey;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: color),
+                                  ),
+                                  child: Text(
+                                    damageActionLabel(action),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: color,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: (_damageSelections[_activePartId]?.isNotEmpty ?? false)
+                                    ? _completeDetectionWithPhoto
+                                    : null,
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('TESPİTİ FOTOĞRAF İLE TAMAMLA'),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -577,6 +729,17 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                   const SizedBox(height: 32),
 
                   // Continue to Job Creation
+                  FilledButton(
+                    onPressed: _saveReceptionForm,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 56),
+                    ),
+                    child: const Text('KABUL FORMUNU KAYDET'),
+                  ),
+
+                  const SizedBox(height: 12),
+
                   FilledButton(
                     onPressed: () => context.push('/create-job-order'),
                     style: FilledButton.styleFrom(

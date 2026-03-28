@@ -5,6 +5,7 @@ import '../models/vehicle_area.dart';
 /// Hasar işlem öncelik sırası. Kaporta/Boya işlemlerinden daha öncelikli gösterilir.
 const List<String> damageActionPriority = <String>[
   'tespit:kirik',
+  'tespit:gocuk',
   'tespit:vuruk',
   'tespit:surtuk',
   'tespit:cizik',
@@ -33,27 +34,31 @@ const Map<String, DamageActionStyle> _damageActionStyles =
       VehicleDamageActions.boya: DamageActionStyle(
         color: Color(0xFF90CAF9),
         stripeAngle: 45,
-        label: 'Boya (Mavi)',
+        label: 'Boya',
       ),
       VehicleDamageActions.kaporta: DamageActionStyle(
         color: Color(0xFFFFF59D),
         stripeAngle: -45,
-        label: 'Kaporta (Sarı)',
+        label: 'Kaporta',
       ),
       VehicleDamageActions.degisim: DamageActionStyle(
         color: Color(0xFFFFCDD2),
         stripeAngle: 0,
-        label: 'Parça Değişim (Kırmızı)',
+        label: 'Değişim',
       ),
       VehicleDamageActions.temizle: DamageActionStyle(
         color: Color(0xFFBDBDBD),
         stripeAngle: 90,
-        label: 'Temizle (Gri)',
+        label: 'Temizle',
       ),
       // Intake Findings (Tespitler)
       'tespit:vuruk': DamageActionStyle(
         color: Color(0xFFFF9800), // Orange
         label: 'Vuruk',
+      ),
+      'tespit:gocuk': DamageActionStyle(
+        color: Color(0xFFFF7043), // Deep Orange
+        label: 'Göçük',
       ),
       'tespit:cizik': DamageActionStyle(
         color: Color(0xFFFFD54F), // Amber/Yellow
@@ -61,7 +66,7 @@ const Map<String, DamageActionStyle> _damageActionStyles =
       ),
       'tespit:surtuk': DamageActionStyle(
         color: Color(0xFFA1887F), // Brownish
-        label: 'Sürtük',
+        label: 'Sürtme',
       ),
       'tespit:leke': DamageActionStyle(
         color: Color(0xFFBA68C8), // Purple
@@ -104,6 +109,11 @@ String _canonicalActionKey(String action) {
   }
 
   return action;
+}
+
+/// Returns the canonical key used in style maps.
+String canonicalDamageActionKey(String action) {
+  return _canonicalActionKey(action);
 }
 
 /// Returns the style for the given action, or null if not supported.

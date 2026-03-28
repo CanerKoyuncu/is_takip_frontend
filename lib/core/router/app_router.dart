@@ -18,6 +18,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/jobs/presentation/screens/job_order_creation/create_screen.dart';
 import '../../features/jobs/presentation/screens/reception/reception_screen.dart';
+import '../../features/jobs/presentation/screens/reception/reception_list_screen.dart';
 import '../../features/jobs/presentation/screens/dashboard_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/list_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/detail_screen.dart';
@@ -143,6 +144,18 @@ class AppRouter {
                 );
               }
               return const VehicleReceptionScreen();
+            },
+          ),
+          GoRoute(
+            path: '/reception-history',
+            name: 'reception-history',
+            builder: (context, state) {
+              if (!_authProvider.canCreateJob) {
+                return const Scaffold(
+                  body: Center(child: Text('Bu sayfaya erişim yetkiniz yok.')),
+                );
+              }
+              return const ReceptionListScreen();
             },
           ),
           // İş emri oluşturma sayfası - Supervisor, manager ve admin'ler erişebilir

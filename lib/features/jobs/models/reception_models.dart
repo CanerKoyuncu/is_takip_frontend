@@ -21,8 +21,9 @@ class ReceptionPhoto {
   /// Tanımlı standart hasar türleri
   static const List<String> standardizedTypes = [
     'Vuruk',
+    'Göçük',
     'Çizik',
-    'Sürtük',
+    'Sürtme',
     'Leke',
     'Kırık',
   ];

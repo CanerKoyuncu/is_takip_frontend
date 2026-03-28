@@ -58,11 +58,37 @@ enum DamageOperationType {
 
   // Intake category operations
   vuruk,
+  gocuk,
   cizik,
   surtuk,
   leke,
   kirik,
 }
+
+/// İlk karşılama (tespit) ekranlarında gösterilecek hasar tipleri.
+const List<DamageOperationType> intakeDamageOperations = <DamageOperationType>[
+  DamageOperationType.kirik,
+  DamageOperationType.gocuk,
+  DamageOperationType.vuruk,
+  DamageOperationType.surtuk,
+  DamageOperationType.cizik,
+  DamageOperationType.leke,
+];
+
+/// İş emri ekranlarında gösterilecek temel hasar tipleri.
+const List<DamageOperationType> workOrderDamageOperations =
+    <DamageOperationType>[
+      DamageOperationType.change,
+      DamageOperationType.sokTak,
+      DamageOperationType.onarim,
+      DamageOperationType.doseme,
+      DamageOperationType.parcaKurtarma,
+      DamageOperationType.boyasizOnarim,
+      DamageOperationType.yeniBoya,
+      DamageOperationType.onarimBoya,
+      DamageOperationType.lokalBoya,
+      DamageOperationType.pasta,
+    ];
 
 /// Extension for DamageOperationType.
 extension DamageOperationTypeX on DamageOperationType {
@@ -94,10 +120,12 @@ extension DamageOperationTypeX on DamageOperationType {
       // Intake (Findings)
       case DamageOperationType.vuruk:
         return 'Vuruk';
+      case DamageOperationType.gocuk:
+        return 'Göçük';
       case DamageOperationType.cizik:
         return 'Çizik';
       case DamageOperationType.surtuk:
-        return 'Sürtük';
+        return 'Sürtme';
       case DamageOperationType.leke:
         return 'Leke';
       case DamageOperationType.kirik:
@@ -129,6 +157,8 @@ extension DamageOperationTypeX on DamageOperationType {
         return Icons.cleaning_services_outlined;
       case DamageOperationType.vuruk:
         return Icons.emergency_outlined;
+      case DamageOperationType.gocuk:
+        return Icons.panorama_fish_eye_outlined;
       case DamageOperationType.cizik:
         return Icons.linear_scale_outlined;
       case DamageOperationType.surtuk:
@@ -156,6 +186,7 @@ extension DamageOperationTypeX on DamageOperationType {
       case DamageOperationType.pasta:
         return DamageTaskCategory.boya;
       case DamageOperationType.vuruk:
+      case DamageOperationType.gocuk:
       case DamageOperationType.cizik:
       case DamageOperationType.surtuk:
       case DamageOperationType.leke:
@@ -165,5 +196,5 @@ extension DamageOperationTypeX on DamageOperationType {
   }
 
   /// Canonical key for the operation (e.g. "kaporta:onarim")
-  String get actionKey => '${category.name}:${name}';
+  String get actionKey => '${category.name}:$name';
 }

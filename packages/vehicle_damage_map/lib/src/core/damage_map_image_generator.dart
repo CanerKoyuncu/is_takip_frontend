@@ -269,9 +269,18 @@ class DamageMapImageGenerator {
       return const <String>[];
     }
 
+    final canonicalActions = actions
+        .map(canonicalDamageActionKey)
+        .toSet()
+        .toList();
+
+    canonicalActions.sort(
+      (a, b) => damageActionPriorityIndex(a).compareTo(damageActionPriorityIndex(b)),
+    );
+
     final normalized = <String>[];
-    for (final action in damageActionPriority) {
-      if (actions.contains(action)) {
+    for (final action in canonicalActions) {
+      if (damageActionStyle(action) != null) {
         normalized.add(action);
       }
     }

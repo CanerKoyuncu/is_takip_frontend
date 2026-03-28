@@ -20,7 +20,8 @@ import '../../../core/services/api_service.dart';
 import '../models/job_models.dart';
 import '../models/job_task_draft.dart';
 import '../models/vehicle_area.dart';
-import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show SparePartItem, PartSupplyStatus;
 import '../utils/enum_mapper.dart';
 
 /// İş emirleri API servis sınıfı
@@ -31,6 +32,19 @@ class JobsApiService {
 
   // Temel API servisi - HTTP istekleri için
   final ApiService _apiService;
+
+  String _partStatusToBackend(PartSupplyStatus status) {
+    switch (status) {
+      case PartSupplyStatus.beklemede:
+        return 'beklemede';
+      case PartSupplyStatus.siparisEdildi:
+        return 'siparis_edildi';
+      case PartSupplyStatus.geldi:
+        return 'geldi';
+      case PartSupplyStatus.takildi:
+        return 'takildi';
+    }
+  }
 
   /// Tüm iş emirlerini getirir
   ///
@@ -335,6 +349,52 @@ class JobsApiService {
           'completionPhotoPath': completionPhotoPath,
       },
     );
+  }
+
+  Future<List<SupplyPartListItem>> getSpareParts({
+    String? search,
+    PartSupplyStatus? status,
+  }) async {
+    final query = <String, dynamic>{
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (status != null) 'status': _partStatusToBackend(status),
+    };
+
+    final response = await _apiService.get(
+      '/parts',
+      queryParameters: query.isEmpty ? null : query,
+    );
+
+    final data = response.data;
+    final list = data is List
+        ? data
+        : (data is Map<String, dynamic>
+              ? (data['data'] as List<dynamic>? ?? const <dynamic>[])
+              : const <dynamic>[]);
+
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(SupplyPartListItem.fromJson)
+        .toList();
+  }
+
+  Future<void> updateSparePartById({
+    required String partId,
+    String? name,
+    PartSupplyStatus? status,
+    String? partCode,
+    String? notes,
+  }) async {
+    final data = <String, dynamic>{
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (status != null) 'status': _partStatusToBackend(status),
+      if (partCode != null) 'partCode': partCode,
+      if (notes != null) 'notes': notes,
+    };
+
+    if (data.isEmpty) return;
+
+    await _apiService.patch('/parts/$partId', data: data);
   }
 
   Future<List<JobNote>> getJobNotes(String jobId) async {
@@ -753,9 +813,6 @@ class JobsApiService {
   /// - jobId: İş emri ID'si
   ///
   /// Döner: Uint8List - PDF dosyası bytes
-  ///
-  /// Not: Bu metod backend'den PDF alır. Frontend'de PDF oluşturmak için
-  /// JobOrderPdfService kullanılabilir.
   Future<Uint8List> getJobPdf(String jobId) async {
     debugPrint('📄 Requesting PDF for job: $jobId');
 
@@ -774,6 +831,35 @@ class JobsApiService {
       return response.data!;
     } else {
       throw Exception('PDF alınamadı: ${response.statusCode}');
+    }
+  }
+
+  /// İş emri için kontrol listesi PDF raporu getirir
+  ///
+  /// Backend'den iş emrinin kontrol listesi PDF raporunu bytes olarak alır.
+  ///
+  /// Parametreler:
+  /// - jobId: İş emri ID'si
+  ///
+  /// Döner: Uint8List - PDF dosyası bytes
+  Future<Uint8List> getJobChecklistPdf(String jobId) async {
+    debugPrint('📄 Requesting Checklist PDF for job: $jobId');
+
+    // PDF'i bytes olarak al
+    final response = await _apiService.get<Uint8List>(
+      '/jobs/$jobId/checklist.pdf',
+      options: Options(
+        responseType: ResponseType.bytes, // Bytes olarak al
+        validateStatus: (status) =>
+            status! < 500, // 500'den küçük status kodlarını kabul et
+      ),
+    );
+
+    if (response.statusCode == 200 && response.data != null) {
+      debugPrint('✓ Checklist PDF received: ${response.data!.length} bytes');
+      return response.data!;
+    } else {
+      throw Exception('Checklist PDF alınamadı: ${response.statusCode}');
     }
   }
 
@@ -855,8 +941,6 @@ class JobsApiService {
       throw Exception('Görev atama başarısız');
     }
   }
-
-
 
   /// Mevcut kullanıcıya atanmış görevleri getirir
   ///

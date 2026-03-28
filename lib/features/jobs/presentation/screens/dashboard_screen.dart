@@ -56,6 +56,14 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 _DashboardCard(
+                  icon: Icons.history_outlined,
+                  title: 'Araç Kabul Kayıtları',
+                  description: 'Kaydedilmiş kabul formlarını görüntüleyin',
+                  color: scheme.secondaryContainer,
+                  onTap: () => context.go('/dashboard/reception-history'),
+                ),
+                const SizedBox(height: 12),
+                _DashboardCard(
                   icon: Icons.map_outlined,
                   title: 'Yeni İş Emri Oluştur',
                   description: 'Araç hasar haritasından yeni iş emri oluşturun',

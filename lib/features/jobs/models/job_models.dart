@@ -14,8 +14,7 @@
 /// - JobOrder: İş emri (ana model)
 
 import 'package:flutter/material.dart';
-import 'package:vehicle_damage_map/vehicle_damage_map.dart'
-    show SparePartItem, PartSupplySource;
+import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
 
 import 'vehicle_area.dart';
 
@@ -755,6 +754,62 @@ class JobOrder {
       isVehicleAvailable: isVehicleAvailable ?? this.isVehicleAvailable,
       vehicleStage: vehicleStage ?? this.vehicleStage,
       requiredParts: requiredParts ?? this.requiredParts,
+    );
+  }
+}
+
+/// Parça tedarik listesi için satır modeli.
+class SupplyPartListItem {
+  const SupplyPartListItem({
+    required this.id,
+    required this.jobId,
+    required this.taskId,
+    required this.part,
+    required this.vehiclePlate,
+    required this.vehicleBrand,
+    required this.vehicleModel,
+  });
+
+  final String id;
+  final String jobId;
+  final String taskId;
+  final SparePartItem part;
+  final String vehiclePlate;
+  final String vehicleBrand;
+  final String vehicleModel;
+
+  static String _normalizeStatus(String? raw) {
+    switch (raw) {
+      case 'siparis_edildi':
+        return 'siparisEdildi';
+      case 'beklemede':
+      case 'geldi':
+      case 'takildi':
+      case 'siparisEdildi':
+        return raw!;
+      default:
+        return 'beklemede';
+    }
+  }
+
+  factory SupplyPartListItem.fromJson(Map<String, dynamic> json) {
+    final partMap = <String, dynamic>{
+      'name': (json['name'] as String?) ?? '-',
+      'supplySource': (json['supplySource'] as String?) ?? 'sigorta',
+      'quantity': (json['quantity'] as int?) ?? 1,
+      'partCode': json['partCode'] as String?,
+      'notes': json['notes'] as String?,
+      'status': _normalizeStatus(json['status'] as String?),
+    };
+
+    return SupplyPartListItem(
+      id: (json['id'] as String?) ?? '',
+      jobId: (json['jobId'] as String?) ?? '',
+      taskId: (json['taskId'] as String?) ?? '',
+      part: SparePartItem.fromMap(partMap),
+      vehiclePlate: (json['vehiclePlate'] as String?) ?? '-',
+      vehicleBrand: (json['vehicleBrand'] as String?) ?? '-',
+      vehicleModel: (json['vehicleModel'] as String?) ?? '-',
     );
   }
 }

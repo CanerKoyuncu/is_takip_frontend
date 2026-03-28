@@ -181,6 +181,15 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
       }
     });
 
+    final legendActions = widget.availableActions != null
+        ? (widget.availableActions!
+            .map((type) => type.actionKey)
+            .map(canonicalDamageActionKey)
+            .toSet()
+            .toList()
+          ..sort((a, b) => damageActionPriorityIndex(a).compareTo(damageActionPriorityIndex(b))))
+        : damageActionPriority;
+
     return Stack(
       children: [
         CustomSvgPicture(
@@ -194,10 +203,10 @@ class _VehicleDamageMapState extends State<VehicleDamageMap> {
           onPartTapped: _handlePartTapped,
         ),
         if (widget.showLegend)
-          const Positioned(
+          Positioned(
             top: 16,
             right: 16,
-            child: IgnorePointer(child: DamageActionLegend()),
+            child: IgnorePointer(child: DamageActionLegend(actions: legendActions)),
           ),
         if (widget.hasSearchBar)
           Positioned(

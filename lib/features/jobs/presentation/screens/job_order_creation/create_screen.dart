@@ -223,6 +223,7 @@ class _CreateJobOrderScreenState extends State<CreateJobOrderScreen> {
         generalNotes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
+        requiredParts: _requiredParts,
       );
 
       await _cacheService.clearDraft();
@@ -456,6 +457,7 @@ class _CreateJobOrderScreenState extends State<CreateJobOrderScreen> {
                                 child: VehicleDamageMap(
                                   assetName: 'assets/car-cutout-grouped.svg',
                                   initialSelections: _selections,
+                                  availableActions: workOrderDamageOperations,
                                   onSelectionsChanged: (updated) {
                                     setState(() => _selections = updated);
                                     _saveDraft();

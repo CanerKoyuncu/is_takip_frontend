@@ -33,11 +33,10 @@ import '../models/job_models.dart';
 import '../models/vehicle_area.dart';
 import '../utils/vehicle_part_mapper.dart';
 import '../utils/svg_vehicle_part_loader.dart';
-import '../utils/damage_map_image_generator.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart' show DamageMapImageGenerator;
 import '../../../core/services/api_service.dart';
 import '../../../core/services/api_service_factory.dart';
 import '../services/photo_service.dart';
-import 'jobs_api_service.dart';
 import 'pdf/pdf_styles.dart';
 import 'pdf/pdf_base_service.dart';
 import 'pdf/pdf_report_metadata.dart';
@@ -160,6 +159,15 @@ class JobOrderPdfService {
         damageSelections = VehiclePartMapper.tasksToSelections(job.tasks);
         if (damageMapImageBytes != null) {
           damageMapImage = pw.MemoryImage(damageMapImageBytes);
+        } else if (damageSelections.isNotEmpty) {
+          final generatedBytes = await DamageMapImageGenerator.instance
+              .generateDamageMapImage(
+                parts: vehicleParts,
+                selections: damageSelections,
+              );
+          if (generatedBytes != null) {
+            damageMapImage = pw.MemoryImage(generatedBytes);
+          }
         }
       } catch (e) {
         debugPrint('⚠ Hasar haritası verileri yüklenemedi: $e');
@@ -207,8 +215,6 @@ class JobOrderPdfService {
                 damageMapImage,
               ),
               pw.SizedBox(height: 20),
-              _buildColorLegend(regularFont, boldFont),
-              pw.SizedBox(height: 20),
               PdfTasksBuilder.build(
                 job,
                 regularFont,
@@ -251,24 +257,23 @@ class JobOrderPdfService {
   Future<void> previewAndShare(
     JobOrder job, {
     BuildContext? context,
-    JobsApiService? jobsApiService,
   }) async {
     try {
+      // Hasar haritası görselini oluştur
       Uint8List? damageMapImageBytes;
-
       try {
         final vehicleParts = await SvgVehiclePartLoader.instance.load();
-        final damageSelections = VehiclePartMapper.tasksToSelections(job.tasks);
-        if (vehicleParts.isNotEmpty && damageSelections.isNotEmpty) {
-          damageMapImageBytes = await DamageMapImageGenerator.instance
-              .generateDamageMapImage(
-                parts: vehicleParts,
-                selections: damageSelections,
-                size: const Size(600, 400),
-              );
-        }
+        final damageSelections =
+            VehiclePartMapper.tasksToSelections(job.tasks);
+
+        damageMapImageBytes = await DamageMapImageGenerator.instance
+            .generateDamageMapImage(
+              parts: vehicleParts,
+              selections: damageSelections,
+            );
       } catch (e) {
-        debugPrint('⚠ Hasar haritası görüntüsü oluşturulamadı: $e');
+        debugPrint('⚠ Hasar haritası oluşturulamadı: $e');
+        // Hata durumunda hasar haritası olmadan PDF oluştur
       }
 
       final pdfBytes = await generatePdf(
@@ -321,14 +326,26 @@ class JobOrderPdfService {
               ),
             ),
             pw.SizedBox(height: 12),
-            pw.Center(
-              child: pw.Container(
-                constraints: const pw.BoxConstraints(
-                  maxWidth: 400,
-                  maxHeight: 250,
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: pw.Center(
+                    child: pw.Container(
+                      constraints: const pw.BoxConstraints(
+                        maxWidth: 400,
+                        maxHeight: 250,
+                      ),
+                      child: pw.Image(damageMapImage, fit: pw.BoxFit.contain),
+                    ),
+                  ),
                 ),
-                child: pw.Image(damageMapImage, fit: pw.BoxFit.contain),
-              ),
+                pw.SizedBox(width: 16),
+                pw.SizedBox(
+                  width: 150,
+                  child: _buildWorkOrderColorLegend(regularFont, boldFont),
+                ),
+              ],
             ),
           ],
         ),
@@ -337,24 +354,50 @@ class JobOrderPdfService {
     return pw.SizedBox();
   }
 
-  pw.Widget _buildColorLegend(pw.Font regularFont, pw.Font boldFont) {
+  pw.Widget _buildWorkOrderColorLegend(pw.Font regularFont, pw.Font boldFont) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(8),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
         borderRadius: pw.BorderRadius.circular(8),
       ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          _buildLegendItem('Boya', PdfColors.blue300, regularFont, boldFont),
-          _buildLegendItem(
-            'Kaporta',
-            PdfColors.orange300,
-            regularFont,
-            boldFont,
+          pw.Text(
+            'Renk Kodları',
+            style: PdfStyles.textStyle(
+              regularFont: regularFont,
+              boldFont: boldFont,
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+            ),
           ),
-          _buildLegendItem('Değişim', PdfColors.red300, regularFont, boldFont),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildLegendItem(
+                'Boya',
+                PdfColor.fromInt(0xFF90CAF9),
+                regularFont,
+                boldFont,
+              ),
+              _buildLegendItem(
+                'Kaporta',
+                PdfColor.fromInt(0xFFFFF59D),
+                regularFont,
+                boldFont,
+              ),
+              _buildLegendItem(
+                'Değişim',
+                PdfColor.fromInt(0xFFFFCDD2),
+                regularFont,
+                boldFont,
+              ),
+            ],
+          ),
         ],
       ),
     );

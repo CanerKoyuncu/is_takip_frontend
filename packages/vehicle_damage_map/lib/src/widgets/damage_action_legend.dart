@@ -4,7 +4,10 @@ import '../core/damage_action_styles.dart';
 /// Damage action legend widget.
 /// Shows color meanings for damage actions.
 class DamageActionLegend extends StatelessWidget {
-  const DamageActionLegend({super.key});
+  const DamageActionLegend({super.key, this.actions});
+
+  /// Optional filtered actions to display in legend.
+  final List<String>? actions;
 
   @override
   Widget build(BuildContext context) {
@@ -12,10 +15,17 @@ class DamageActionLegend extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    final entries = damageActionPriority
-        .map(damageActionStyle)
-        .whereType<DamageActionStyle>()
-        .toList();
+    final actionsToShow = actions ?? damageActionPriority;
+    final entries = actionsToShow
+      .map((action) => canonicalDamageActionKey(action))
+      .toSet()
+      .toList()
+      ..sort((a, b) => damageActionPriorityIndex(a).compareTo(damageActionPriorityIndex(b)));
+
+    final styles = entries
+      .map(damageActionStyle)
+      .whereType<DamageActionStyle>()
+      .toList();
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 180),
@@ -47,7 +57,7 @@ class DamageActionLegend extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              for (final entry in entries)
+              for (final entry in styles)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
@@ -79,16 +89,6 @@ class DamageActionLegend extends StatelessWidget {
                     ],
                   ),
                 ),
-              const SizedBox(height: 4),
-              Text(
-                'Bir parçada birden fazla işlem varsa renkler çizgili olarak birlikte gösterilir.',
-                style: textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontSize: 10,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
             ],
           ),
         ),

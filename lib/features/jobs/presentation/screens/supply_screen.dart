@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/job_models.dart';
 import '../../providers/jobs_provider.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart'
-    show SparePartItem, PartSupplySource, PartSupplyStatus, PartSupplyStatusX;
+    show PartSupplySource, PartSupplyStatus, PartSupplyStatusX;
 import '../../../../core/widgets/loading_indicator.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,14 +19,34 @@ class _SupplyScreenState extends State<SupplyScreen>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   TabController? _tabController;
+  List<SupplyPartListItem> _parts = const [];
+  bool _loading = false;
+
+  PartSupplyStatus get _currentStatus {
+    final index = _tabController?.index ?? 0;
+    switch (index) {
+      case 0:
+        return PartSupplyStatus.beklemede;
+      case 1:
+        return PartSupplyStatus.siparisEdildi;
+      case 2:
+        return PartSupplyStatus.geldi;
+      case 3:
+      default:
+        return PartSupplyStatus.takildi;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    Future.microtask(() {
-      context.read<JobsProvider>().loadJobs();
+    _tabController?.addListener(() {
+      if (!(_tabController?.indexIsChanging ?? false)) {
+        _loadParts();
+      }
     });
+    Future.microtask(_loadParts);
   }
 
   @override
@@ -52,55 +72,49 @@ class _SupplyScreenState extends State<SupplyScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<JobsProvider>().refreshJobs(),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadParts),
+        ],
+      ),
+      body: Column(
+        children: [
+          _buildSearchHeader(),
+          Expanded(
+            child: _loading
+                ? const LoadingIndicator()
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildPartList(_parts),
+                      _buildPartList(_parts),
+                      _buildPartList(_parts),
+                      _buildPartList(_parts),
+                    ],
+                  ),
           ),
         ],
       ),
-      body: Consumer<JobsProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading && provider.jobs.isEmpty) {
-            return const LoadingIndicator();
-          }
-
-          final List<_SparePartWithJob> allParts = [];
-          for (final job in provider.jobs) {
-            for (final task in job.tasks) {
-              for (final part in task.spareParts) {
-                allParts.add(
-                  _SparePartWithJob(part: part, job: job, task: task),
-                );
-              }
-            }
-          }
-
-          final filteredParts = allParts.where((item) {
-            return _searchQuery.isEmpty ||
-                item.part.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                (item.part.partCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-                item.job.vehicle.plate.toLowerCase().contains(_searchQuery.toLowerCase());
-          }).toList();
-
-          return Column(
-            children: [
-              _buildSearchHeader(),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildPartList(filteredParts, PartSupplyStatus.beklemede),
-                    _buildPartList(filteredParts, PartSupplyStatus.siparisEdildi),
-                    _buildPartList(filteredParts, PartSupplyStatus.geldi),
-                    _buildPartList(filteredParts, PartSupplyStatus.takildi),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
     );
+  }
+
+  Future<void> _loadParts() async {
+    if (!mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      final parts = await context.read<JobsProvider>().getSpareParts(
+        search: _searchQuery,
+        status: _currentStatus,
+      );
+      if (!mounted) return;
+      setState(() => _parts = parts);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Parça listesi alınamadı')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Widget _buildSearchHeader() {
@@ -113,24 +127,34 @@ class _SupplyScreenState extends State<SupplyScreen>
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
-          fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          fillColor: Theme.of(
+            context,
+          ).colorScheme.surfaceVariant.withOpacity(0.3),
         ),
-        onChanged: (v) => setState(() => _searchQuery = v),
+        onChanged: (v) {
+          setState(() => _searchQuery = v);
+          _loadParts();
+        },
       ),
     );
   }
 
-  Widget _buildPartList(List<_SparePartWithJob> parts, PartSupplyStatus status) {
-    final statusParts = parts.where((p) => p.part.status == status).toList();
-
-    if (statusParts.isEmpty) {
+  Widget _buildPartList(List<SupplyPartListItem> parts) {
+    if (parts.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey.shade400),
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 12),
-            Text('${status.label} parça bulunmuyor', style: const TextStyle(color: Colors.grey)),
+            Text(
+              '${_currentStatus.label} parça bulunmuyor',
+              style: const TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -138,22 +162,17 @@ class _SupplyScreenState extends State<SupplyScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 80),
-      itemCount: statusParts.length,
-      itemBuilder: (context, index) => _SupplyPartCard(item: statusParts[index]),
+      itemCount: parts.length,
+      itemBuilder: (context, index) =>
+          _SupplyPartCard(item: parts[index], onSaved: _loadParts),
     );
   }
 }
 
-class _SparePartWithJob {
-  final SparePartItem part;
-  final JobOrder job;
-  final JobTask task;
-  _SparePartWithJob({required this.part, required this.job, required this.task});
-}
-
 class _SupplyPartCard extends StatelessWidget {
-  const _SupplyPartCard({required this.item});
-  final _SparePartWithJob item;
+  const _SupplyPartCard({required this.item, required this.onSaved});
+  final SupplyPartListItem item;
+  final Future<void> Function() onSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -164,15 +183,21 @@ class _SupplyPartCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.colorScheme.outlineVariant)),
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
       child: Column(
         children: [
           ListTile(
-            onTap: () => context.push('/dashboard/job-orders/${item.job.id}'),
+            onTap: () => context.push('/dashboard/job-orders/${item.jobId}'),
             title: Row(
               children: [
-                Expanded(child: Text(item.part.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                  child: Text(
+                    item.part.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
                 _buildSourceBadge(isInsurance),
               ],
             ),
@@ -180,22 +205,39 @@ class _SupplyPartCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (item.part.partCode != null)
-                  Text('Kod: ${item.part.partCode}', style: TextStyle(color: theme.colorScheme.primary, fontSize: 12)),
-                Text('${item.job.vehicle.plate} • ${item.job.vehicle.brand} ${item.job.vehicle.model}',
-                    style: const TextStyle(fontSize: 12)),
+                  Text(
+                    'Kod: ${item.part.partCode}',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 12,
+                    ),
+                  ),
+                Text(
+                  '${item.vehiclePlate} • ${item.vehicleBrand} ${item.vehicleModel}',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ],
             ),
           ),
           if (item.part.notes != null && item.part.notes!.isNotEmpty)
-             Padding(
-               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-               child: Container(
-                 width: double.infinity,
-                 padding: const EdgeInsets.all(8),
-                 decoration: BoxDecoration(color: theme.colorScheme.surfaceVariant.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
-                 child: Text(item.part.notes!, style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
-               ),
-             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  item.part.notes!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -225,7 +267,11 @@ class _SupplyPartCard extends StatelessWidget {
       ),
       child: Text(
         isInsurance ? 'Sigorta' : 'Kendi',
-        style: TextStyle(color: isInsurance ? Colors.blue : Colors.teal, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: isInsurance ? Colors.blue : Colors.teal,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -256,12 +302,13 @@ class _SupplyPartCard extends StatelessWidget {
     }
 
     return FilledButton.icon(
-      onPressed: () => context.read<JobsProvider>().updateSparePart(
-            jobId: item.job.id,
-            taskId: item.task.id,
-            partName: item.part.name,
-            status: nextStatus,
-          ),
+      onPressed: () async {
+        await context.read<JobsProvider>().updateSparePartById(
+          partId: item.id,
+          status: nextStatus,
+        );
+        await onSaved();
+      },
       icon: Icon(icon, size: 16),
       label: Text(label, style: const TextStyle(fontSize: 12)),
       style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
@@ -279,28 +326,37 @@ class _SupplyPartCard extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Parça Kodu')),
+            TextField(
+              controller: codeController,
+              decoration: const InputDecoration(labelText: 'Parça Kodu'),
+            ),
             const SizedBox(height: 12),
-            TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notlar'), maxLines: 2),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(labelText: 'Notlar'),
+              maxLines: 2,
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
           FilledButton(
-            onPressed: () {
-              context.read<JobsProvider>().updateSparePart(
-                    jobId: item.job.id,
-                    taskId: item.task.id,
-                    partName: item.part.name,
-                    partCode: codeController.text,
-                    notes: notesController.text,
-                  );
+            onPressed: () async {
+              await context.read<JobsProvider>().updateSparePartById(
+                partId: item.id,
+                partCode: codeController.text,
+                notes: notesController.text,
+              );
               Navigator.pop(context);
+              await onSaved();
             },
             child: const Text('Kaydet'),
           ),
         ],
       ),
-        );
+    );
   }
 }

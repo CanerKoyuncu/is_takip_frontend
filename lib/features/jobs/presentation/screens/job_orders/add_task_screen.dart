@@ -186,6 +186,7 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
                     assetName: 'assets/car-cutout-grouped.svg',
                     initialSelections: _selections,
                     initialSparePartsSelections: _sparePartsSelections,
+                    availableActions: workOrderDamageOperations,
                     onSelectionsChanged: (updated) {
                       setState(() {
                         _selections = updated;

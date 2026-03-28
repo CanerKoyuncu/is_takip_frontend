@@ -242,12 +242,34 @@ class JobsProvider extends ChangeNotifier {
 
     try {
       // Backend'e iş emri oluşturma isteği gönder
-      final job = await _jobsApiService.createJob(
+      final createdJob = await _jobsApiService.createJob(
         vehicle: vehicle,
         taskDrafts: taskDrafts,
         generalNotes: generalNotes,
         requiredParts: requiredParts,
       );
+
+      // Taslak fotoğrafları (kabul dahil) oluşturulan gerçek görevlere yükle
+      final (uploadedCount, failedCount) = await _uploadDraftPhotos(
+        createdJob,
+        taskDrafts,
+      );
+
+      JobOrder job = createdJob;
+      if (uploadedCount > 0) {
+        // Fotoğraflar yüklendikten sonra işi API'den yenileyerek cache'i güncel tut
+        try {
+          job = await _jobsApiService.getJobById(createdJob.id);
+        } catch (_) {
+          // Sessizce devam et - en azından oluşturulan iş elimizde var
+        }
+      }
+
+      if (failedCount > 0) {
+        _setError(
+          'İş emri oluşturuldu ancak $failedCount fotoğraf yüklenemedi. Lütfen görev detayından yeniden yükleyin.',
+        );
+      }
 
       // Başarılı olursa cache'in başına ekle (en yeni en üstte)
       _jobs.insert(0, job);
@@ -259,6 +281,52 @@ class JobsProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<(int, int)> _uploadDraftPhotos(
+    JobOrder createdJob,
+    List<JobTaskDraft> taskDrafts,
+  ) async {
+    var uploadedCount = 0;
+    var failedCount = 0;
+
+    if (createdJob.tasks.isEmpty || taskDrafts.isEmpty) {
+      return (uploadedCount, failedCount);
+    }
+
+    final taskCount = createdJob.tasks.length < taskDrafts.length
+        ? createdJob.tasks.length
+        : taskDrafts.length;
+
+    for (var index = 0; index < taskCount; index++) {
+      final createdTask = createdJob.tasks[index];
+      final draftTask = taskDrafts[index];
+
+      if (draftTask.photoPaths.isEmpty) continue;
+
+      final photoType = draftTask.operationType == JobOperationType.reception
+          ? TaskPhotoType.reception
+          : TaskPhotoType.damage;
+
+      for (final photoPath in draftTask.photoPaths) {
+        try {
+          await _jobsApiService.uploadPhoto(
+            jobId: createdJob.id,
+            taskId: createdTask.id,
+            filePath: photoPath,
+            type: photoType,
+          );
+          uploadedCount++;
+        } catch (e) {
+          failedCount++;
+          debugPrint(
+            '✗ Taslak fotoğraf yükleme hatası (job=${createdJob.id}, task=${createdTask.id}): $e',
+          );
+        }
+      }
+    }
+
+    return (uploadedCount, failedCount);
   }
 
   /// Download all photos for a job as ZIP archive.
@@ -606,6 +674,42 @@ class JobsProvider extends ChangeNotifier {
       _jobs[index] = job;
       notifyListeners();
       _setError('Yedek parça güncellenirken hata oluştu: ${e.toString()}');
+    }
+  }
+
+  Future<List<SupplyPartListItem>> getSpareParts({
+    String? search,
+    PartSupplyStatus? status,
+  }) async {
+    try {
+      return await _jobsApiService.getSpareParts(
+        search: search,
+        status: status,
+      );
+    } catch (e) {
+      _setError('Yedek parça listesi alınırken hata oluştu: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  Future<void> updateSparePartById({
+    required String partId,
+    String? name,
+    PartSupplyStatus? status,
+    String? partCode,
+    String? notes,
+  }) async {
+    try {
+      await _jobsApiService.updateSparePartById(
+        partId: partId,
+        name: name,
+        status: status,
+        partCode: partCode,
+        notes: notes,
+      );
+    } catch (e) {
+      _setError('Yedek parça güncellenirken hata oluştu: ${e.toString()}');
+      rethrow;
     }
   }
 

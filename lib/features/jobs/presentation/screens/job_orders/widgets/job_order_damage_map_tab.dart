@@ -70,6 +70,7 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
                     VehicleDamageMap(
                       assetName: 'assets/car-cutout-grouped.svg',
                       initialSelections: selectedDamages,
+                      availableActions: workOrderDamageOperations,
                       onSelectionsChanged: (updated) {
                         damageProvider.updateDamageReportDraft(
                           widget.jobOrderId,
@@ -179,18 +180,7 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
   }
 
   Color _getActionColorInList(String action) {
-    switch (action) {
-      case 'boya':
-        return const Color(0xFF90CAF9); // Mavi
-      case 'kaporta':
-        return const Color(0xFFFFF59D); // Sarı
-      case 'degisim':
-        return const Color(0xFFFFCDD2); // Kırmızı
-      case 'temizle':
-        return const Color(0xFFC8E6C9); // Yeşil
-      default:
-        return Colors.grey;
-    }
+    return damageActionColor(action) ?? Colors.grey;
   }
 
   /// Seçilen hasarları liste olarak göster
@@ -275,17 +265,6 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
   }
 
   String _getActionLabelInList(String action) {
-    switch (action) {
-      case 'boya':
-        return 'Boya';
-      case 'kaporta':
-        return 'Kaporta';
-      case 'degisim':
-        return 'Değişim';
-      case 'temizle':
-        return 'Temizle';
-      default:
-        return action;
-    }
+    return damageActionLabel(action);
   }
 }

@@ -5,17 +5,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+  show damageActionColor, damageActionLabel;
 import '../../widgets/image_annotation_canvas.dart';
 
 /// Fotoğraf üzerinde işaretleme yapma ekranı.
 class PhotoAnnotationScreen extends StatefulWidget {
   final String imagePath;
   final String? initialNote;
+  final List<String> damageActions;
 
   const PhotoAnnotationScreen({
     super.key,
     required this.imagePath,
     this.initialNote,
+    this.damageActions = const [],
   });
 
   @override
@@ -24,17 +28,32 @@ class PhotoAnnotationScreen extends StatefulWidget {
 
 class _PhotoAnnotationScreenState extends State<PhotoAnnotationScreen> {
   final GlobalKey _repaintKey = GlobalKey();
-  Color _strokeColor = Colors.red;
+  late Color _strokeColor;
   double _strokeWidth = 5.0;
-  final List<Color> _colors = [
+  final List<Color> _fallbackColors = [
     Colors.red,
     Colors.yellow,
     Colors.blue,
     Colors.green,
     Colors.black,
   ];
+  late final List<String> _availableDamageActions;
+  String? _selectedDamageAction;
 
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _availableDamageActions = widget.damageActions.toSet().toList();
+
+    if (_availableDamageActions.isNotEmpty) {
+      _selectedDamageAction = _availableDamageActions.first;
+      _strokeColor = damageActionColor(_selectedDamageAction!) ?? Colors.red;
+    } else {
+      _strokeColor = Colors.red;
+    }
+  }
 
   Future<void> _saveAnnotation() async {
     setState(() => _isSaving = true);
@@ -144,43 +163,71 @@ class _PhotoAnnotationScreenState extends State<PhotoAnnotationScreen> {
                   // Color & Size controls
                   Row(
                     children: [
-                      // Colors
+                      // Hasar tipine bağlı renkler
                       Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _colors.map((color) {
-                              return GestureDetector(
-                                onTap: () =>
-                                    setState(() => _strokeColor = color),
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: _strokeColor == color
-                                          ? Colors.white
-                                          : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      if (_strokeColor == color)
-                                        BoxShadow(
-                                          color: color.withOpacity(0.5),
-                                          blurRadius: 4,
+                        child: _availableDamageActions.isNotEmpty
+                            ? SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: _availableDamageActions.map((action) {
+                                    final color = damageActionColor(action) ?? Colors.red;
+                                    final selected = _selectedDamageAction == action;
+
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: ChoiceChip(
+                                        selected: selected,
+                                        onSelected: (_) {
+                                          setState(() {
+                                            _selectedDamageAction = action;
+                                            _strokeColor = color;
+                                          });
+                                        },
+                                        avatar: CircleAvatar(
+                                          radius: 8,
+                                          backgroundColor: color,
                                         ),
-                                    ],
-                                  ),
+                                        label: Text(damageActionLabel(action)),
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
+                              )
+                            : SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: _fallbackColors.map((color) {
+                                    return GestureDetector(
+                                      onTap: () =>
+                                          setState(() => _strokeColor = color),
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: _strokeColor == color
+                                                ? Colors.white
+                                                : Colors.transparent,
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            if (_strokeColor == color)
+                                              BoxShadow(
+                                                color: color.withValues(alpha: 0.5),
+                                                blurRadius: 4,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
                       ),
 
                       const VerticalDivider(width: 16),
@@ -230,7 +277,9 @@ class _PhotoAnnotationScreenState extends State<PhotoAnnotationScreen> {
                       ),
 
                       Text(
-                        'Damaged areas marker',
+                        _selectedDamageAction != null
+                            ? 'Seçili hasar: ${damageActionLabel(_selectedDamageAction!)}'
+                            : 'Hasarlı alanları işaretleyin',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
 

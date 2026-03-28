@@ -9,7 +9,6 @@ import '../../../../auth/providers/auth_provider.dart';
 import '../../../models/vehicle_area.dart';
 import '../../../utils/vehicle_part_mapper.dart';
 import '../../../services/job_order_pdf_service.dart';
-import '../../../../../core/services/api_service_factory.dart';
 import '../../../../../core/widgets/error_state.dart';
 import '../../../../../core/widgets/loading_indicator.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart';
@@ -123,13 +122,9 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                 tooltip: 'PDF Önizleme ve Paylaş',
                 onPressed: () async {
                   try {
-                    // Get JobsApiService for backend PDF generation
-                    final jobsApiService =
-                        ApiServiceFactory.getJobsApiService();
                     await JobOrderPdfService.instance.previewAndShare(
                       job,
                       context: context,
-                      jobsApiService: jobsApiService,
                     );
                   } catch (e) {
                     if (context.mounted) {
@@ -778,6 +773,7 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                             child: VehicleDamageMap(
                               assetName: 'assets/car-cutout-grouped.svg',
                               initialSelections: selections,
+                              availableActions: workOrderDamageOperations,
                               readOnly: true,
                               showActionSheet: false,
                               onPartTapped: (partId) {

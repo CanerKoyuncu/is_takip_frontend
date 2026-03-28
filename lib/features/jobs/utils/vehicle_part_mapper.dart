@@ -112,29 +112,29 @@ class VehiclePartMapper {
       'yakit-depo-kapagi',
     ],
     VehicleArea.leftFrontDoor: [
-      'sol-on-kapı',
       'sol-on-kapi',
+      'sol-on-kapı',
       'sol-on-cam',
       'sol-on-kapi-kolu',
     ],
     VehicleArea.leftRearDoor: [
-      'sol-arka-kapı',
       'sol-arka-kapi',
+      'sol-arka-kapı',
       'sol-arka-cam',
       'sol-arka-kelebek',
       'sol-arka-kapi-kolu',
     ],
     VehicleArea.rightFrontDoor: [
-      'sag-on-kapı',
       'sag-on-kapi',
+      'sag-on-kapı',
       'sag-on-cam',
       'path682', // Eski ID - backward compatibility
       'sag-orta-cam', // Yeni anlamlı ID
       'sag-on-kapi-kolu',
     ],
     VehicleArea.rightRearDoor: [
-      'sag-arka-kapı',
       'sag-arka-kapi',
+      'sag-arka-kapı',
       'sag-arka-cam',
       'sag-arka-kapi-kolu',
     ],

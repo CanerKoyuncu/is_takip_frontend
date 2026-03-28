@@ -14,27 +14,12 @@ class VehicleDamageMapExample extends StatefulWidget {
 }
 
 class _VehicleDamageMapExampleState extends State<VehicleDamageMapExample> {
-  final Map<String, Color> _partColors = {};
+  VehiclePartSelections _selections = {};
   String? _lastTappedPart;
 
   void _handlePartTapped(String partId) {
     setState(() {
       _lastTappedPart = partId;
-
-      if (_partColors.containsKey(partId)) {
-        _partColors.remove(partId);
-      } else {
-        _partColors[partId] = Colors.red.withValues(alpha: 0.7);
-      }
-    });
-  }
-
-  void _selectAllParts() {
-    setState(() {
-      final allParts = VehiclePartsConfig.getAllPartIds();
-      for (final partId in allParts) {
-        _partColors[partId] = Colors.red.withValues(alpha: 0.7);
-      }
     });
   }
 
@@ -53,7 +38,6 @@ class _VehicleDamageMapExampleState extends State<VehicleDamageMapExample> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
           ),
-
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(16),
@@ -65,27 +49,25 @@ class _VehicleDamageMapExampleState extends State<VehicleDamageMapExample> {
                 assetName:
                     'packages/vehicle_damage_map/assets/car-cutout-grouped.svg',
                 fit: BoxFit.contain,
-                partColorMap: _partColors,
+                initialSelections: _selections,
+                onSelectionsChanged: (newSelections) {
+                  setState(() {
+                    _selections = newSelections;
+                  });
+                },
                 onPartTapped: _handlePartTapped,
                 hasSearchBar: true,
-                configuration: VehicleMapConfiguration.custom(
-                  removedPartIds: [
-                    // Example: Exclude specific parts from selection and search
-                    // 'yakit-depo-kapagi',
-                  ],
-                ),
+                configuration: VehicleMapConfiguration.standard(),
               ),
             ),
           ),
           const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Text('Red = Damaged (Tap to toggle)'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16.0),
-            child: ElevatedButton(
-              onPressed: _selectAllParts,
-              child: const Text('Hepsini Seç'),
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'Interactive Mode: Tap parts to select damage types.\n'
+              'Includes Legend and Action Sheets automatically.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
             ),
           ),
         ],

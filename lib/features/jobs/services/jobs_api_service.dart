@@ -204,20 +204,12 @@ class JobsApiService {
     return _jobOrderFromJson(response.data['data'] ?? response.data);
   }
 
-  /// Görevi başlatır
-  ///
-  /// Backend'e görevin başlatıldığını bildirir.
-  ///
-  /// Parametreler:
-  /// - jobId: İş emri ID'si
-  /// - taskId: Görev ID'si
-  /// - assignedWorkerId: Atanan personel ID'si (opsiyonel)
   Future<void> startTask({
     required String jobId,
     required String taskId,
     String? assignedWorkerId,
   }) async {
-    await _apiService.patch(
+    await _apiService.post(
       '/jobs/$jobId/tasks/$taskId/start',
       data: {
         if (assignedWorkerId != null) 'assignedWorkerId': assignedWorkerId,
@@ -225,41 +217,23 @@ class JobsApiService {
     );
   }
 
-  /// Görevi duraklatır
-  ///
-  /// Backend'e görevin duraklatıldığını bildirir.
-  /// Mevcut çalışma oturumu kaydedilir.
-  ///
-  /// Parametreler:
-  /// - jobId: İş emri ID'si
-  /// - taskId: Görev ID'si
-  /// - note: Duraklatma notu (opsiyonel)
   Future<void> pauseTask({
     required String jobId,
     required String taskId,
     String? note,
   }) async {
-    await _apiService.patch(
+    await _apiService.post(
       '/jobs/$jobId/tasks/$taskId/pause',
       data: {if (note != null && note.isNotEmpty) 'note': note},
     );
   }
 
-  /// Görevi devam ettirir
-  ///
-  /// Backend'e görevin devam ettirildiğini bildirir.
-  /// Yeni bir çalışma oturumu başlatılır.
-  ///
-  /// Parametreler:
-  /// - jobId: İş emri ID'si
-  /// - taskId: Görev ID'si
-  /// - assignedWorkerId: Devam ettirecek personel ID'si (farklı personel olabilir)
   Future<void> resumeTask({
     required String jobId,
     required String taskId,
     required String assignedWorkerId,
   }) async {
-    await _apiService.patch(
+    await _apiService.post(
       '/jobs/$jobId/tasks/$taskId/resume',
       data: {'assignedWorkerId': assignedWorkerId},
     );
@@ -280,6 +254,7 @@ class JobsApiService {
     bool updateBlockingReason = false,
     bool? isTaskAvailable,
     String? note,
+    List<SparePartItem>? spareParts, // Add spare parts support
   }) async {
     final data = <String, dynamic>{};
     if (updateBlockingReason) {
@@ -292,6 +267,9 @@ class JobsApiService {
     }
     if (note != null) {
       data['note'] = note;
+    }
+    if (spareParts != null) {
+      data['spareParts'] = spareParts.map((p) => p.toMap()).toList();
     }
 
     await _apiService.patch('/jobs/$jobId/tasks/$taskId', data: data);
@@ -347,7 +325,7 @@ class JobsApiService {
     String? note,
     String? completionPhotoPath,
   }) async {
-    await _apiService.patch(
+    await _apiService.post(
       '/jobs/$jobId/tasks/$taskId/complete',
       data: {
         // Not varsa ekle
@@ -877,6 +855,8 @@ class JobsApiService {
       throw Exception('Görev atama başarısız');
     }
   }
+
+
 
   /// Mevcut kullanıcıya atanmış görevleri getirir
   ///

@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:xml/xml.dart' as xml;
+
+import '../core/damage_action_styles.dart' as core_styles;
+import '../models/vehicle_config.dart';
 
 /// Custom SVG widget that uses path_drawing and xml packages
 /// instead of flutter_svg to support specific interactivity and rendering requirements.
@@ -75,32 +79,17 @@ class _CustomSvgPictureState extends State<CustomSvgPicture> {
         }
 
         final parsed = snapshot.data!;
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            // Calculate intrinsic size if unbounded, or take constraints
-            double width = parsed.viewBox.width;
-            double height = parsed.viewBox.height;
-
-            if (constraints.hasBoundedWidth) {
-              width = constraints.maxWidth;
-            }
-            if (constraints.hasBoundedHeight) {
-              height = constraints.maxHeight;
-            }
-
-            // If both are unbounded, we use viewBox size.
-            // Logic in frontend version used constraints if bounded, else viewBox.
-            // We should preserve that logic but creating a SizdBox with those dims might force it.
-            // Using LayoutBuilder primarily to get constraints for CustomPaint?
-            // Actually CustomPaint size: Size.infinite relies on parent.
-            // Frontend uses SizedBox(width: width, height: height, child: CustomPaint)
-
-            return SizedBox(
-              width: width,
-              height: height,
-              child: GestureDetector(
-                onTapUp: (details) =>
-                    _handleTap(details, parsed, Size(width, height)),
+        return AspectRatio(
+          aspectRatio: parsed.viewBox.width / parsed.viewBox.height,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final widgetSize = Size(
+                constraints.maxWidth,
+                constraints.maxHeight,
+              );
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (details) => _handleTap(details, parsed, widgetSize),
                 child: CustomPaint(
                   painter: _CustomSvgPainter(
                     svg: parsed,
@@ -109,9 +98,9 @@ class _CustomSvgPictureState extends State<CustomSvgPicture> {
                     partActionsMap: widget.partActionsMap,
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -125,16 +114,17 @@ class _CustomSvgPictureState extends State<CustomSvgPicture> {
 
     final localPosition = details.localPosition;
 
-    // Transform tap to SVG coordinates
-    // (tap - offset) / scale
-    final svgX = (localPosition.dx - offset.dx) / scale;
-    final svgY = (localPosition.dy - offset.dy) / scale;
+    // Transform tap to SVG coordinates, accounting for viewBox origin
+    final svgX = (localPosition.dx - offset.dx) / scale + svg.viewBox.left;
+    final svgY = (localPosition.dy - offset.dy) / scale + svg.viewBox.top;
     final tapPoint = Offset(svgX, svgY);
 
     // Check matches in reversed order (topmost first)
     for (final shape in svg.shapes.reversed) {
-      // Check if either partId or groupId is a valid interactive ID
-      final effectiveId = _getInteractiveId(shape);
+      // Resolve IDs (try partId first, then groupId)
+      final effectiveId =
+          _resolveEffectiveId(shape.partId) ??
+          _resolveEffectiveId(shape.groupId);
 
       if (effectiveId != null) {
         bool isHit = false;
@@ -145,12 +135,9 @@ class _CustomSvgPictureState extends State<CustomSvgPicture> {
         }
 
         // 2. If not hit, check for special closed shapes (like rects from SVG)
-        // treating them as solid even if fill is none
         if (!isHit) {
-          // Check if it's a closed shape that should be tappable by bounds/interior
           if (_isKnownClosedShape(effectiveId) || _isPathClosed(shape.path)) {
             if (shape.path.getBounds().contains(tapPoint)) {
-              // Re-check contains to be sure we are inside the shape
               if (shape.path.contains(tapPoint)) {
                 isHit = true;
               }
@@ -160,9 +147,7 @@ class _CustomSvgPictureState extends State<CustomSvgPicture> {
 
         // 3. If still not hit, check for strokes/lines with tolerance
         if (!isHit) {
-          // Use tolerance for stroke-based parts (e.g. marşpiyeler, tavan lines)
-          // Tolerance needs to be scaled to SVG coordinates
-          const tolerance = 20.0; // similar to frontend logic
+          const tolerance = 20.0;
           if (_isPointNearPath(tapPoint, shape.path, tolerance)) {
             isHit = true;
           }
@@ -176,23 +161,27 @@ class _CustomSvgPictureState extends State<CustomSvgPicture> {
     }
   }
 
-  /// Helper to get the correct ID for interaction, checking interactableIds list
-  String? _getInteractiveId(SvgShape shape) {
-    if (widget.interactableIds == null) {
-      // If no list provided, assume active if it has an ID
-      return shape.partId ?? shape.groupId;
+  String? _resolveEffectiveId(String? technicalId) {
+    if (technicalId == null || technicalId.isEmpty) return null;
+
+    // 1. Get canonical ID from registry (handles aliases like path682 -> sag-orta-cam)
+    final canonicalId = VehiclePartsRegistry.resolveId(technicalId);
+
+    // 2. Check if canonical ID is interactable
+    if (canonicalId != null &&
+        (widget.interactableIds?.contains(canonicalId) ?? true)) {
+      return canonicalId;
     }
 
-    if (shape.partId != null &&
-        widget.interactableIds!.contains(shape.partId)) {
-      return shape.partId;
+    // 3. Fallback to technical ID if it's directly interactable
+    if (widget.interactableIds?.contains(technicalId) ?? true) {
+      return technicalId;
     }
-    if (shape.groupId != null &&
-        widget.interactableIds!.contains(shape.groupId)) {
-      return shape.groupId;
-    }
+
     return null;
   }
+
+  // Removed _getInteractiveId as logic is inside _handleTap
 
   // --- Hit Test Utilities (Ported from frontend) ---
 
@@ -278,6 +267,7 @@ class _CustomSvgPainter extends CustomPainter {
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
     canvas.scale(scale);
+    canvas.translate(-svg.viewBox.left, -svg.viewBox.top);
 
     final paint = Paint()
       ..style = PaintingStyle.fill
@@ -328,20 +318,25 @@ class _CustomSvgPainter extends CustomPainter {
   }
 
   String? _getStyleId(SvgShape shape) {
-    if (partColorMap != null) {
-      if (shape.partId != null && partColorMap!.containsKey(shape.partId))
-        return shape.partId;
-      if (shape.groupId != null && partColorMap!.containsKey(shape.groupId))
-        return shape.groupId;
+    return _findBestStyleId(shape.partId) ?? _findBestStyleId(shape.groupId);
+  }
+
+  String? _findBestStyleId(String? technicalId) {
+    if (technicalId == null || technicalId.isEmpty) return null;
+
+    final resolvedId = VehiclePartsRegistry.resolveId(technicalId);
+    if (resolvedId != null &&
+        (partColorMap?.containsKey(resolvedId) == true ||
+            partActionsMap?.containsKey(resolvedId) == true)) {
+      return resolvedId;
     }
-    if (partActionsMap != null) {
-      if (shape.partId != null && partActionsMap!.containsKey(shape.partId))
-        return shape.partId;
-      if (shape.groupId != null && partActionsMap!.containsKey(shape.groupId))
-        return shape.groupId;
+
+    if (partColorMap?.containsKey(technicalId) == true ||
+        partActionsMap?.containsKey(technicalId) == true) {
+      return technicalId;
     }
-    // Fallback: prefer partId, then groupId
-    return shape.partId ?? shape.groupId;
+
+    return null;
   }
 
   void _drawStripedPattern(
@@ -439,26 +434,16 @@ class _CustomSvgPainter extends CustomPainter {
     return Offset(dx, dy);
   }
 
-  DamageActionStyle? damageActionStyle(String action) {
-    // Map damage action strings to their corresponding styles
-    switch (action.toLowerCase()) {
-      case 'scratch':
-        return DamageActionStyle(color: Colors.yellow);
-      case 'dent':
-        return DamageActionStyle(color: Colors.orange);
-      case 'break':
-        return DamageActionStyle(color: Colors.red);
-      default:
-        return DamageActionStyle(color: Colors.grey);
-    }
+  static core_styles.DamageActionStyle? damageActionStyle(String action) {
+    return core_styles.damageActionStyle(action);
   }
 
   @override
   bool shouldRepaint(covariant _CustomSvgPainter oldDelegate) {
     return oldDelegate.svg != svg ||
         oldDelegate.fit != fit ||
-        oldDelegate.partColorMap != partColorMap ||
-        oldDelegate.partActionsMap != partActionsMap;
+        !mapEquals(oldDelegate.partColorMap, partColorMap) ||
+        !mapEquals(oldDelegate.partActionsMap, partActionsMap);
   }
 }
 

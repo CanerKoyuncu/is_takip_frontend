@@ -21,6 +21,8 @@ import '../services/jobs_api_service.dart';
 import '../utils/download_helper_stub.dart'
     if (dart.library.html) '../utils/download_helper_web.dart'
     as download_helper;
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show PartSupplySource, PartSupplyStatus;
 
 /// İş emirleri provider sınıfı
 ///
@@ -540,6 +542,70 @@ class JobsProvider extends ChangeNotifier {
       _jobs[index] = job;
       notifyListeners();
       _setError('Görev güncellenirken hata oluştu: ${e.toString()}');
+    }
+  }
+
+  /// Yedek parça bilgilerini günceller
+  Future<void> updateSparePart({
+    required String jobId,
+    required String taskId,
+    required String partName,
+    String? newName,
+    PartSupplySource? supplySource,
+    int? quantity,
+    PartSupplyStatus? status,
+    String? partCode,
+    String? notes,
+  }) async {
+    // İş emrini cache'de bul
+    final index = _jobs.indexWhere((job) => job.id == jobId);
+    if (index == -1) {
+      _setError('İş bulunamadı');
+      return;
+    }
+
+    final job = _jobs[index];
+    final taskIndex = job.tasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex == -1) {
+      _setError('Görev bulunamadı');
+      return;
+    }
+
+    // Optimistic update - önce UI'ı güncelle
+    final updatedTasks = List<JobTask>.from(job.tasks);
+    final task = updatedTasks[taskIndex];
+
+    final updatedParts = task.spareParts.map((part) {
+      if (part.name != partName) return part;
+
+      return part.copyWith(
+        name: newName,
+        supplySource: supplySource,
+        quantity: quantity,
+        status: status,
+        partCode: partCode,
+        notes: notes,
+      );
+    }).toList();
+
+    updatedTasks[taskIndex] = task.copyWith(spareParts: updatedParts);
+    _jobs[index] = job.copyWith(tasks: updatedTasks);
+    notifyListeners();
+
+    try {
+      // Backend'e güncel yedek parça listesini gönder
+      await _jobsApiService.updateTask(
+        jobId: jobId,
+        taskId: taskId,
+        spareParts: updatedParts,
+      );
+      // Backend'den güncel veriyi al
+      await _refreshJob(jobId);
+    } catch (e) {
+      // Hata olursa geri al (rollback)
+      _jobs[index] = job;
+      notifyListeners();
+      _setError('Yedek parça güncellenirken hata oluştu: ${e.toString()}');
     }
   }
 

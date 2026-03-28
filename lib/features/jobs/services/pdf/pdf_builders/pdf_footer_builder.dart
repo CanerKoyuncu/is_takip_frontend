@@ -4,7 +4,6 @@
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import '../../../models/job_models.dart';
 import 'pdf_helper_widgets.dart';
 
 /// PDF footer builder sınıfı
@@ -12,51 +11,29 @@ class PdfFooterBuilder {
   PdfFooterBuilder._();
 
   /// Footer widget'ı oluşturur
-  static pw.Widget build(
-    JobOrder job,
-    pw.Font regularFont,
-    pw.Font boldFont,
-  ) {
-    final pendingCount = job.tasks
-        .where((t) => t.status == JobTaskStatus.pending)
-        .length;
-    final inProgressCount = job.tasks
-        .where((t) => t.status == JobTaskStatus.inProgress)
-        .length;
-    final completedCount = job.tasks
-        .where((t) => t.status == JobTaskStatus.completed)
-        .length;
-
+  static pw.Widget build({
+    required Map<String, int> stats,
+    required pw.Font regularFont,
+    required pw.Font boldFont,
+  }) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
+        color: PdfColors.grey50,
         borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: PdfColors.grey200, width: 0.5),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-        children: [
-          PdfHelperWidgets.buildStatItem(
-            'Beklemede',
-            pendingCount,
+        children: stats.entries.map((entry) {
+          return PdfHelperWidgets.buildStatItem(
+            entry.key,
+            entry.value,
             regularFont,
             boldFont,
-          ),
-          PdfHelperWidgets.buildStatItem(
-            'Devam Ediyor',
-            inProgressCount,
-            regularFont,
-            boldFont,
-          ),
-          PdfHelperWidgets.buildStatItem(
-            'Tamamlandı',
-            completedCount,
-            regularFont,
-            boldFont,
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
 }
-

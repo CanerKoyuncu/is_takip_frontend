@@ -16,15 +16,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
-import '../../features/jobs/models/vehicle_area.dart';
 import '../../features/jobs/presentation/screens/job_order_creation/create_screen.dart';
+import '../../features/jobs/presentation/screens/reception/reception_screen.dart';
 import '../../features/jobs/presentation/screens/dashboard_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/list_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/detail_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/task_management_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/add_data_screen.dart';
 import '../../features/jobs/presentation/screens/job_orders/add_task_screen.dart';
-import '../../features/jobs/presentation/screens/job_order_creation/vehicle_parts_screen.dart';
 import '../../features/jobs/presentation/screens/kiosk/kiosk_screen.dart';
 import '../../features/jobs/presentation/screens/workers/workers_management_screen.dart';
 import '../../features/jobs/presentation/screens/workers/worker_hours_report_screen.dart';
@@ -33,6 +32,7 @@ import '../../features/jobs/presentation/screens/workers/available_tasks_screen.
 import '../../features/jobs/presentation/screens/workers/all_assigned_tasks_screen.dart';
 import '../../features/jobs/presentation/screens/workers/pending_tasks_screen.dart';
 import '../../features/jobs/presentation/screens/supply_screen.dart';
+import '../../features/jobs/presentation/screens/test_damage_map_screen.dart';
 
 /// Uygulama router sınıfı
 ///
@@ -132,18 +132,17 @@ class AppRouter {
         builder: (context, state) => const DashboardScreen(),
         // Dashboard altındaki alt sayfalar (nested routes)
         routes: [
-          // Araç parçaları seçim sayfası - sadece yetkili kullanıcılar için
+          // Araç Giriş (Teslim Alma) sayfası
           GoRoute(
-            path: '/vehicle-parts',
-            name: 'vehicle-parts',
+            path: '/reception',
+            name: 'reception',
             builder: (context, state) {
-              // İş emri oluşturma yetkisi kontrolü
               if (!_authProvider.canCreateJob) {
                 return const Scaffold(
                   body: Center(child: Text('Bu sayfaya erişim yetkiniz yok.')),
                 );
               }
-              return const VehiclePartsScreen();
+              return const VehicleReceptionScreen();
             },
           ),
           // İş emri oluşturma sayfası - Supervisor, manager ve admin'ler erişebilir
@@ -159,22 +158,8 @@ class AppRouter {
                 );
               }
 
-              // Extra data'dan seçimleri al
-              final extra = state.extra as Map<String, dynamic>?;
-              if (extra == null) {
-                // Eğer extra data yoksa hata mesajı göster
-                return const Scaffold(
-                  body: Center(child: Text('Hata: Seçimler bulunamadı.')),
-                );
-              }
-
-              // Seçilen parça işlemlerini al
-              final selections = extra['selections'] as VehiclePartSelections;
-              // Parça listesini al
-              final parts = extra['parts'] as List<VehiclePart>;
-
               // İş emri oluşturma ekranını göster
-              return CreateJobOrderScreen(selections: selections, parts: parts);
+              return const CreateJobOrderScreen();
             },
           ),
           // İş emirleri listesi sayfası (nested routes içerir)
@@ -293,6 +278,12 @@ class AppRouter {
             path: '/supply-tracking',
             name: 'supply-tracking',
             builder: (context, state) => const SupplyScreen(),
+          ),
+          // Test Damage Map
+          GoRoute(
+            path: '/test-damage-map',
+            name: 'test-damage-map',
+            builder: (context, state) => const TestDamageMapScreen(),
           ),
         ],
       ),

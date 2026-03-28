@@ -134,6 +134,8 @@ class EnumMapper {
   /// Döner: String - Backend formatında string (camelCase)
   static String jobOperationTypeToBackend(JobOperationType type) {
     switch (type) {
+      case JobOperationType.reception:
+        return 'reception';
       case JobOperationType.change:
         return 'change';
       // Kaporta kategorisi
@@ -173,6 +175,8 @@ class EnumMapper {
   static JobOperationType jobOperationTypeFromBackend(String value) {
     switch (value) {
       // Yeni değerler - Kaporta
+      case 'reception':
+        return JobOperationType.reception;
       case 'sokTak':
         return JobOperationType.sokTak;
       case 'change':
@@ -308,6 +312,8 @@ class EnumMapper {
   /// Döner: String - Backend formatında string (örn: "damage", "completion")
   static String taskPhotoTypeToBackend(TaskPhotoType type) {
     switch (type) {
+      case TaskPhotoType.reception:
+        return 'reception';
       case TaskPhotoType.damage:
         return 'damage';
       case TaskPhotoType.completion:
@@ -333,6 +339,8 @@ class EnumMapper {
   /// Not: Bilinmeyen değerler için varsayılan olarak TaskPhotoType.damage döner.
   static TaskPhotoType taskPhotoTypeFromBackend(String value) {
     switch (value) {
+      case 'reception':
+        return TaskPhotoType.reception;
       case 'damage':
         return TaskPhotoType.damage;
       case 'completion':

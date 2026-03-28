@@ -35,6 +35,8 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
 
   IconData _getPhotoTypeIcon(TaskPhotoType type) {
     switch (type) {
+      case TaskPhotoType.reception:
+        return Icons.car_rental_outlined;
       case TaskPhotoType.damage:
         return Icons.broken_image_outlined;
       case TaskPhotoType.completion:

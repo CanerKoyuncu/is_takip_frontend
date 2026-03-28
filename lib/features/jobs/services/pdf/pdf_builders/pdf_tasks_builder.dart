@@ -186,6 +186,9 @@ class PdfTasksBuilder {
                         String photoTypeLabel = 'Fotoğraf';
                         if (metadata != null) {
                           switch (metadata.type) {
+                            case TaskPhotoType.reception:
+                              photoTypeLabel = 'Teslim Alma Fotoğrafı';
+                              break;
                             case TaskPhotoType.damage:
                               photoTypeLabel = 'Hasar Fotoğrafı';
                               break;

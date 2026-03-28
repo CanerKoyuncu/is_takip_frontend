@@ -48,11 +48,19 @@ class DashboardScreen extends StatelessWidget {
               if (context.watch<AuthProvider>().canCreateJob) ...[
                 const SizedBox(height: 12),
                 _DashboardCard(
+                  icon: Icons.car_rental_outlined,
+                  title: 'Araç Kabul (Giriş)',
+                  description: 'Yeni araç girişi yapın ve araç durumunu fotoğraflayın',
+                  color: scheme.primaryContainer,
+                  onTap: () => context.go('/dashboard/reception'),
+                ),
+                const SizedBox(height: 12),
+                _DashboardCard(
                   icon: Icons.map_outlined,
                   title: 'Yeni İş Emri Oluştur',
                   description: 'Araç hasar haritasından yeni iş emri oluşturun',
                   color: scheme.secondaryContainer,
-                  onTap: () => context.go('/dashboard/vehicle-parts'),
+                  onTap: () => context.go('/dashboard/create-job-order'),
                 ),
                 const SizedBox(height: 12),
                 _DashboardCard(
@@ -138,6 +146,14 @@ class DashboardScreen extends StatelessWidget {
                     color: scheme.tertiaryContainer,
                     onTap: () => context.go('/dashboard/workers'),
                   ),
+                const SizedBox(height: 12),
+                _DashboardCard(
+                  icon: Icons.bug_report_outlined,
+                  title: 'Test: Damage Map Karşılaştırma',
+                  description: 'Harita test ekranını açar',
+                  color: scheme.errorContainer,
+                  onTap: () => context.go('/dashboard/test-damage-map'),
+                ),
                 const SizedBox(height: 24),
               ],
 

@@ -80,6 +80,17 @@ class VehiclePartsRegistry {
   /// Belirli bir aksiyon için izin verilen parçalar.
   static List<VehiclePartDefinition> byAction(String action) =>
       all.where((p) => p.allowedActions.contains(action)).toList();
+
+  /// SVG'den gelen bir ID'yi (path id veya group id) mantıksal parça ID'sine çözümler.
+  /// Örn: 'path682' -> 'sag-orta-cam'
+  static String? resolveId(String? id) {
+    if (id == null) return null;
+    final def = byId(id);
+    if (def != null) {
+      return def.aliasFor ?? def.id;
+    }
+    return id;
+  }
 }
 
 /// Tüm parça ID'leri (yalnızca gerçek ID'ler, alias'lar hariç).

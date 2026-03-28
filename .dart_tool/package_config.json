@@ -99,7 +99,7 @@
     },
     {
       "name": "characters",
-      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/characters-1.4.0",
+      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/characters-1.4.1",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -239,7 +239,7 @@
       "name": "flutter",
       "rootUri": "file:///home/caner/flutter/packages/flutter",
       "packageUri": "lib/",
-      "languageVersion": "3.8"
+      "languageVersion": "3.9"
     },
     {
       "name": "flutter_dotenv",
@@ -257,7 +257,7 @@
       "name": "flutter_localizations",
       "rootUri": "file:///home/caner/flutter/packages/flutter_localizations",
       "packageUri": "lib/",
-      "languageVersion": "3.8"
+      "languageVersion": "3.9"
     },
     {
       "name": "flutter_plugin_android_lifecycle",
@@ -269,13 +269,13 @@
       "name": "flutter_test",
       "rootUri": "file:///home/caner/flutter/packages/flutter_test",
       "packageUri": "lib/",
-      "languageVersion": "3.8"
+      "languageVersion": "3.9"
     },
     {
       "name": "flutter_web_plugins",
       "rootUri": "file:///home/caner/flutter/packages/flutter_web_plugins",
       "packageUri": "lib/",
-      "languageVersion": "3.8"
+      "languageVersion": "3.9"
     },
     {
       "name": "frontend_server_client",
@@ -429,21 +429,21 @@
     },
     {
       "name": "matcher",
-      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/matcher-0.12.17",
+      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/matcher-0.12.18",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.7"
     },
     {
       "name": "material_color_utilities",
-      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/material_color_utilities-0.11.1",
+      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/material_color_utilities-0.13.0",
       "packageUri": "lib/",
-      "languageVersion": "2.17"
+      "languageVersion": "3.5"
     },
     {
       "name": "meta",
-      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/meta-1.16.0",
+      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/meta-1.17.0",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.5"
     },
     {
       "name": "mime",
@@ -653,7 +653,7 @@
       "name": "sky_engine",
       "rootUri": "file:///home/caner/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
-      "languageVersion": "3.8"
+      "languageVersion": "3.9"
     },
     {
       "name": "source_gen",
@@ -699,9 +699,9 @@
     },
     {
       "name": "test_api",
-      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/test_api-0.7.6",
+      "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/test_api-0.7.9",
       "packageUri": "lib/",
-      "languageVersion": "3.5"
+      "languageVersion": "3.7"
     },
     {
       "name": "timing",
@@ -726,6 +726,12 @@
       "rootUri": "file:///home/caner/.pub-cache/hosted/pub.dev/vector_math-2.2.0",
       "packageUri": "lib/",
       "languageVersion": "3.1"
+    },
+    {
+      "name": "vehicle_damage_map",
+      "rootUri": "../packages/vehicle_damage_map",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
     },
     {
       "name": "vm_service",
@@ -783,8 +789,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.9.2",
+  "generatorVersion": "3.11.0",
   "flutterRoot": "file:///home/caner/flutter",
-  "flutterVersion": "3.35.3",
+  "flutterVersion": "3.41.2",
   "pubCache": "file:///home/caner/.pub-cache"
 }

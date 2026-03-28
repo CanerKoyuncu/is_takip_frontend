@@ -26,6 +26,37 @@ enum PartSupplySource {
   kendi,
 }
 
+/// Parça tedarik durumu.
+enum PartSupplyStatus {
+  /// Sipariş henüz verilmedi.
+  beklemede,
+
+  /// Sipariş ilgili yere iletildi.
+  siparisEdildi,
+
+  /// Parça servis merkezine ulaştı.
+  geldi,
+
+  /// Parça araca monte edildi.
+  takildi,
+}
+
+/// PartSupplyStatus extension'ı — Türkçe etiketler için.
+extension PartSupplyStatusX on PartSupplyStatus {
+  String get label {
+    switch (this) {
+      case PartSupplyStatus.beklemede:
+        return 'Beklemede';
+      case PartSupplyStatus.siparisEdildi:
+        return 'Sipariş Edildi';
+      case PartSupplyStatus.geldi:
+        return 'Geldi';
+      case PartSupplyStatus.takildi:
+        return 'Takıldı';
+    }
+  }
+}
+
 /// Bir araç parçasının yedek parça kalemi.
 class SparePartItem {
   const SparePartItem({
@@ -34,6 +65,7 @@ class SparePartItem {
     this.quantity = 1,
     this.partCode,
     this.notes,
+    this.status = PartSupplyStatus.beklemede, // Varsayılan durum: Beklemede
   });
 
   /// Yedek parçanın adı (örn. "Kaput Paneli")
@@ -45,11 +77,14 @@ class SparePartItem {
   /// Gereken adet
   final int quantity;
 
-  /// OEM veya tedarikçi parça kodu (opsiyonel — kullanıcı tarafından girilebilir)
+  /// OEM veya tedarikçi parça kodu (opsiyonel)
   final String? partCode;
 
   /// Parçaya özel not (opsiyonel)
   final String? notes;
+
+  /// Mevcut tedarik durumu
+  final PartSupplyStatus status;
 
   factory SparePartItem.fromMap(Map<String, dynamic> map) {
     return SparePartItem(
@@ -60,6 +95,10 @@ class SparePartItem {
       quantity: (map['quantity'] as int?) ?? 1,
       partCode: map['partCode'] as String?,
       notes: map['notes'] as String?,
+      status: PartSupplyStatus.values.firstWhere(
+        (e) => e.name == (map['status'] as String?),
+        orElse: () => PartSupplyStatus.beklemede,
+      ),
     );
   }
 
@@ -67,6 +106,7 @@ class SparePartItem {
         'name': name,
         'supplySource': supplySource.name,
         'quantity': quantity,
+        'status': status.name,
         if (partCode != null) 'partCode': partCode,
         if (notes != null) 'notes': notes,
       };
@@ -75,6 +115,7 @@ class SparePartItem {
     String? name,
     PartSupplySource? supplySource,
     int? quantity,
+    PartSupplyStatus? status,
     Object? partCode = _sentinel,
     Object? notes = _sentinel,
   }) {
@@ -82,6 +123,7 @@ class SparePartItem {
       name: name ?? this.name,
       supplySource: supplySource ?? this.supplySource,
       quantity: quantity ?? this.quantity,
+      status: status ?? this.status,
       partCode: partCode == _sentinel ? this.partCode : partCode as String?,
       notes: notes == _sentinel ? this.notes : notes as String?,
     );
@@ -153,6 +195,48 @@ const List<Map<String, dynamic>> kVehiclePartsData = [
     'allowedActions': ['boya', 'kaporta', 'degisim', 'temizle'],
     'spareParts': [
       {'name': 'Ön Tampon Gövdesi', 'supplySource': 'sigorta', 'quantity': 1},
+    ],
+  },
+  {
+    'id': 'on-tampon-govde',
+    'name': 'Ön Tampon Gövdesi',
+    'aliasFor': 'on-tampon',
+  },
+  {
+    'id': 'ön-tampon-panjur',
+    'name': 'Ön Tampon Panjur',
+    'aliasFor': 'on-tampon',
+  },
+  {
+    'id': 'sol-on-far',
+    'name': 'Sol Ön Far',
+    'allowedActions': ['degisim', 'temizle'],
+    'spareParts': [
+      {'name': 'Sol Ön Far', 'supplySource': 'sigorta', 'quantity': 1},
+    ],
+  },
+  {
+    'id': 'sag-on-far',
+    'name': 'Sağ Ön Far',
+    'allowedActions': ['degisim', 'temizle'],
+    'spareParts': [
+      {'name': 'Sağ Ön Far', 'supplySource': 'sigorta', 'quantity': 1},
+    ],
+  },
+  {
+    'id': 'sol-on-sinyal',
+    'name': 'Sol Ön Sinyal',
+    'allowedActions': ['degisim', 'temizle'],
+    'spareParts': [
+      {'name': 'Sinyal Lambası', 'supplySource': 'kendi', 'quantity': 1},
+    ],
+  },
+  {
+    'id': 'sag-on-sinyal',
+    'name': 'Sağ Ön Sinyal',
+    'allowedActions': ['degisim', 'temizle'],
+    'spareParts': [
+      {'name': 'Sinyal Lambası', 'supplySource': 'kendi', 'quantity': 1},
     ],
   },
   {
@@ -284,6 +368,11 @@ const List<Map<String, dynamic>> kVehiclePartsData = [
       {'name': 'Sol Sis Farı', 'supplySource': 'sigorta', 'quantity': 1},
       {'name': 'Sis Farı Çerçevesi', 'supplySource': 'kendi', 'quantity': 1},
     ],
+  },
+  {
+    'id': 'sol-camurluk-sinyali',
+    'name': 'Sol Çamurluk Sinyali',
+    'aliasFor': 'sol-on-camurluk',
   },
   // ===== SOL ARKA TARAF =====
   {

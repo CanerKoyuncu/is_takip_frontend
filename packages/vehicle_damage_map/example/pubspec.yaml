@@ -1,0 +1,16 @@
+name: vehicle_damage_map_example
+description: Demonstrates how to use the vehicle_damage_map widget.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  vehicle_damage_map:
+    path: ../
+
+flutter:
+  uses-material-design: true

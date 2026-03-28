@@ -26,6 +26,7 @@
         "shared_preferences",
         "uuid",
         "vector_math",
+        "vehicle_damage_map",
         "xml"
       ],
       "devDependencies": [
@@ -284,6 +285,16 @@
       "dependencies": []
     },
     {
+      "name": "vehicle_damage_map",
+      "version": "0.1.0",
+      "dependencies": [
+        "flutter",
+        "path_drawing",
+        "vector_math",
+        "xml"
+      ]
+    },
+    {
       "name": "path_drawing",
       "version": "1.0.1",
       "dependencies": [
@@ -515,7 +526,7 @@
     },
     {
       "name": "meta",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "dependencies": []
     },
     {
@@ -694,7 +705,7 @@
     },
     {
       "name": "matcher",
-      "version": "0.12.17",
+      "version": "0.12.18",
       "dependencies": [
         "async",
         "meta",
@@ -705,7 +716,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.6",
+      "version": "0.7.9",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -1015,14 +1026,14 @@
     },
     {
       "name": "material_color_utilities",
-      "version": "0.11.1",
+      "version": "0.13.0",
       "dependencies": [
         "collection"
       ]
     },
     {
       "name": "characters",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "dependencies": []
     },
     {

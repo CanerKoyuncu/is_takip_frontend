@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../models/job_models.dart';
-import '../../models/vehicle_area.dart';
 import '../../providers/jobs_provider.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart'
-    show SparePartItem, PartSupplySource, VehicleAreaX;
+    show SparePartItem, PartSupplySource, PartSupplyStatus, PartSupplyStatusX;
 import '../../../../core/widgets/loading_indicator.dart';
-import '../../../../core/widgets/error_state.dart';
 import 'package:go_router/go_router.dart';
 
 class SupplyScreen extends StatefulWidget {
@@ -17,15 +14,16 @@ class SupplyScreen extends StatefulWidget {
   State<SupplyScreen> createState() => _SupplyScreenState();
 }
 
-class _SupplyScreenState extends State<SupplyScreen> {
+class _SupplyScreenState extends State<SupplyScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  PartSupplySource? _filterSource;
+  TabController? _tabController;
 
   @override
   void initState() {
     super.initState();
-    // Ensure jobs are loaded
+    _tabController = TabController(length: 4, vsync: this);
     Future.microtask(() {
       context.read<JobsProvider>().loadJobs();
     });
@@ -34,6 +32,7 @@ class _SupplyScreenState extends State<SupplyScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -42,10 +41,20 @@ class _SupplyScreenState extends State<SupplyScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Parça Tedarik Takibi'),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Bekleyen'),
+            Tab(text: 'Siparişte'),
+            Tab(text: 'Serviste'),
+            Tab(text: 'Takılan'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<JobsProvider>().loadJobs(),
+            onPressed: () => context.read<JobsProvider>().refreshJobs(),
           ),
         ],
       ),
@@ -55,14 +64,6 @@ class _SupplyScreenState extends State<SupplyScreen> {
             return const LoadingIndicator();
           }
 
-          if (provider.errorMessage != null && provider.jobs.isEmpty) {
-            return ErrorState(
-              message: provider.errorMessage!,
-              onRetry: () => provider.loadJobs(),
-            );
-          }
-
-          // Extract all spare parts from all jobs
           final List<_SparePartWithJob> allParts = [];
           for (final job in provider.jobs) {
             for (final task in job.tasks) {
@@ -74,141 +75,71 @@ class _SupplyScreenState extends State<SupplyScreen> {
             }
           }
 
-          // Apply filters
           final filteredParts = allParts.where((item) {
-            final matchesQuery =
-                _searchQuery.isEmpty ||
-                item.part.name.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ) ||
-                (item.part.partCode?.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ) ??
-                    false) ||
-                item.job.vehicle.plate.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                );
-
-            final matchesSource =
-                _filterSource == null ||
-                item.part.supplySource == _filterSource;
-
-            return matchesQuery && matchesSource;
+            return _searchQuery.isEmpty ||
+                item.part.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                (item.part.partCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                item.job.vehicle.plate.toLowerCase().contains(_searchQuery.toLowerCase());
           }).toList();
-
-          // Sort by date (descending)
-          filteredParts.sort(
-            (a, b) => b.job.createdAt.compareTo(a.job.createdAt),
-          );
 
           return Column(
             children: [
-              // Search and Filter Bar
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+              _buildSearchHeader(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
                   children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Parça adı, kod veya plaka ile ara...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  setState(() {
-                                    _searchController.clear();
-                                    _searchQuery = '';
-                                  });
-                                },
-                              )
-                            : null,
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          FilterChip(
-                            label: const Text('Tümü'),
-                            selected: _filterSource == null,
-                            onSelected: (selected) {
-                              if (selected)
-                                setState(() => _filterSource = null);
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          FilterChip(
-                            label: const Text('Sigorta'),
-                            selected: _filterSource == PartSupplySource.sigorta,
-                            onSelected: (selected) {
-                              setState(
-                                () => _filterSource = selected
-                                    ? PartSupplySource.sigorta
-                                    : null,
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          FilterChip(
-                            label: const Text('Kendi Tedariğimiz'),
-                            selected: _filterSource == PartSupplySource.kendi,
-                            onSelected: (selected) {
-                              setState(
-                                () => _filterSource = selected
-                                    ? PartSupplySource.kendi
-                                    : null,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildPartList(filteredParts, PartSupplyStatus.beklemede),
+                    _buildPartList(filteredParts, PartSupplyStatus.siparisEdildi),
+                    _buildPartList(filteredParts, PartSupplyStatus.geldi),
+                    _buildPartList(filteredParts, PartSupplyStatus.takildi),
                   ],
                 ),
-              ),
-
-              // Parts List
-              Expanded(
-                child: filteredParts.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              size: 64,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Aranan kriterlere uygun parça bulunamadı',
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: filteredParts.length,
-                        itemBuilder: (context, index) {
-                          final item = filteredParts[index];
-                          return _SupplyPartCard(item: item);
-                        },
-                      ),
               ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSearchHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Parça adı, kod veya plaka...',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        ),
+        onChanged: (v) => setState(() => _searchQuery = v),
+      ),
+    );
+  }
+
+  Widget _buildPartList(List<_SparePartWithJob> parts, PartSupplyStatus status) {
+    final statusParts = parts.where((p) => p.part.status == status).toList();
+
+    if (statusParts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text('${status.label} parça bulunmuyor', style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 80),
+      itemCount: statusParts.length,
+      itemBuilder: (context, index) => _SupplyPartCard(item: statusParts[index]),
     );
   }
 }
@@ -217,17 +148,11 @@ class _SparePartWithJob {
   final SparePartItem part;
   final JobOrder job;
   final JobTask task;
-
-  _SparePartWithJob({
-    required this.part,
-    required this.job,
-    required this.task,
-  });
+  _SparePartWithJob({required this.part, required this.job, required this.task});
 }
 
 class _SupplyPartCard extends StatelessWidget {
   const _SupplyPartCard({required this.item});
-
   final _SparePartWithJob item;
 
   @override
@@ -237,118 +162,145 @@ class _SupplyPartCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: () => context.push('/dashboard/job-orders/${item.job.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      item.part.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isInsurance
-                          ? Colors.blue.withOpacity(0.1)
-                          : Colors.teal.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      isInsurance ? 'Sigorta' : 'Kendi',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isInsurance ? Colors.blue : Colors.teal,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (item.part.partCode != null &&
-                  item.part.partCode!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Parça Kodu: ${item.part.partCode}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: theme.colorScheme.outlineVariant)),
+      child: Column(
+        children: [
+          ListTile(
+            onTap: () => context.push('/dashboard/job-orders/${item.job.id}'),
+            title: Row(
+              children: [
+                Expanded(child: Text(item.part.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+                _buildSourceBadge(isInsurance),
               ],
-              const Divider(height: 24),
-              Row(
-                children: [
-                  Icon(
-                    Icons.directions_car_outlined,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    item.job.vehicle.plate,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${item.job.vehicle.brand} ${item.job.vehicle.model}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${item.task.area.label} - ${item.task.operationType.label}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const Spacer(),
-                  Text(
-                    DateFormat('dd.MM.yyyy').format(item.job.createdAt),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-              if (item.part.notes != null && item.part.notes!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Not: ${item.part.notes}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.part.partCode != null)
+                  Text('Kod: ${item.part.partCode}', style: TextStyle(color: theme.colorScheme.primary, fontSize: 12)),
+                Text('${item.job.vehicle.plate} • ${item.job.vehicle.brand} ${item.job.vehicle.model}',
+                    style: const TextStyle(fontSize: 12)),
               ],
-            ],
+            ),
           ),
-        ),
+          if (item.part.notes != null && item.part.notes!.isNotEmpty)
+             Padding(
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+               child: Container(
+                 width: double.infinity,
+                 padding: const EdgeInsets.all(8),
+                 decoration: BoxDecoration(color: theme.colorScheme.surfaceVariant.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
+                 child: Text(item.part.notes!, style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+               ),
+             ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _buildActionButton(context),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  onPressed: () => _showEditDialog(context),
+                  icon: const Icon(Icons.edit_note, size: 20),
+                  tooltip: 'Düzenle',
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildSourceBadge(bool isInsurance) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: (isInsurance ? Colors.blue : Colors.teal).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        isInsurance ? 'Sigorta' : 'Kendi',
+        style: TextStyle(color: isInsurance ? Colors.blue : Colors.teal, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context) {
+    String label = '';
+    IconData icon = Icons.check;
+    PartSupplyStatus nextStatus = item.part.status;
+
+    switch (item.part.status) {
+      case PartSupplyStatus.beklemede:
+        label = 'Sipariş Ver';
+        icon = Icons.shopping_cart_outlined;
+        nextStatus = PartSupplyStatus.siparisEdildi;
+        break;
+      case PartSupplyStatus.siparisEdildi:
+        label = 'Geldi İşaretle';
+        icon = Icons.local_shipping_outlined;
+        nextStatus = PartSupplyStatus.geldi;
+        break;
+      case PartSupplyStatus.geldi:
+        label = 'Takıldı İşaretle';
+        icon = Icons.build_circle_outlined;
+        nextStatus = PartSupplyStatus.takildi;
+        break;
+      case PartSupplyStatus.takildi:
+        return const SizedBox.shrink();
+    }
+
+    return FilledButton.icon(
+      onPressed: () => context.read<JobsProvider>().updateSparePart(
+            jobId: item.job.id,
+            taskId: item.task.id,
+            partName: item.part.name,
+            status: nextStatus,
+          ),
+      icon: Icon(icon, size: 16),
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+    );
+  }
+
+  void _showEditDialog(BuildContext context) {
+    final codeController = TextEditingController(text: item.part.partCode);
+    final notesController = TextEditingController(text: item.part.notes);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item.part.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Parça Kodu')),
+            const SizedBox(height: 12),
+            TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notlar'), maxLines: 2),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          FilledButton(
+            onPressed: () {
+              context.read<JobsProvider>().updateSparePart(
+                    jobId: item.job.id,
+                    taskId: item.task.id,
+                    partName: item.part.name,
+                    partCode: codeController.text,
+                    notes: notesController.text,
+                  );
+              Navigator.pop(context);
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+        );
   }
 }

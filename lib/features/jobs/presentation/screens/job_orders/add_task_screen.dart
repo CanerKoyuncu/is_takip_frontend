@@ -7,8 +7,7 @@ import '../../../providers/jobs_provider.dart';
 import '../../../models/job_models.dart';
 import '../../../models/vehicle_area.dart';
 import '../../../utils/vehicle_part_mapper.dart';
-import '../../../utils/svg_vehicle_part_loader.dart';
-import '../../widgets/vehicle_damage_map.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart';
 
 class AddTaskToJobScreen extends StatefulWidget {
   const AddTaskToJobScreen({super.key, required this.jobId});
@@ -21,8 +20,11 @@ class AddTaskToJobScreen extends StatefulWidget {
 
 class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
   VehiclePartSelections _selections = {};
+  PartSparePartsMap _sparePartsSelections = {};
   List<VehiclePart>? _parts;
   bool _isLoading = true;
+  bool _isSaving = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -38,7 +40,9 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('Error loading vehicle parts: $e');
       setState(() {
+        _loadError = e.toString();
         _isLoading = false;
       });
     }
@@ -56,13 +60,26 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
     }
 
     if (_parts == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Araç parçaları yüklenemedi: ${_loadError ?? "Bilinmeyen hata"}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
+
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
 
     try {
       final taskDrafts = VehiclePartMapper.selectionsToTaskDrafts(
         _selections,
         _parts!,
+        sparePartsSelections: _sparePartsSelections,
       );
 
       if (taskDrafts.isEmpty) {
@@ -102,7 +119,7 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
 
         await provider.addTaskToJob(
           jobId: widget.jobId,
-          task: task,
+          task: task.copyWith(spareParts: draft.spareParts),
           partName: partName,
         );
       }
@@ -117,6 +134,7 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
         context.pop();
       }
     } catch (e) {
+      debugPrint('Error adding tasks: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -124,6 +142,10 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -134,11 +156,23 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
       appBar: AppBar(
         title: const Text('Yeni Görev Ekle'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: _addTasks,
-            tooltip: 'Görevleri Ekle',
-          ),
+          if (_isLoading || _isSaving)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.check),
+              onPressed: _addTasks,
+              tooltip: 'Görevleri Ekle',
+            ),
         ],
       ),
       body: _isLoading
@@ -149,16 +183,17 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
               children: [
                 Expanded(
                   child: VehicleDamageMap(
-                    parts: _parts!,
+                    assetName: 'assets/car-cutout-grouped.svg',
                     initialSelections: _selections,
+                    initialSparePartsSelections: _sparePartsSelections,
                     onSelectionsChanged: (updated) {
                       setState(() {
-                        _selections = Map<String, List<String>>.from(
-                          updated.map(
-                            (key, value) =>
-                                MapEntry(key, List<String>.from(value)),
-                          ),
-                        );
+                        _selections = updated;
+                      });
+                    },
+                    onSparePartsChanged: (updated) {
+                      setState(() {
+                        _sparePartsSelections = updated;
                       });
                     },
                   ),
@@ -180,7 +215,7 @@ class _AddTaskToJobScreenState extends State<AddTaskToJobScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Seçilen Parçalar: ${_selections.length}',
+                        'Seçilen: ${_selections.length} Bölge, ${_sparePartsSelections.values.expand((e) => e).length} Parça',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),

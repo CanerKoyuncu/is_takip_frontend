@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/vehicle_area.dart';
 
-/// Hasar işlem öncelik sırası
+/// Hasar işlem öncelik sırası. Kaporta/Boya işlemlerinden daha öncelikli gösterilir.
 const List<String> damageActionPriority = <String>[
+  'tespit:kirik',
+  'tespit:vuruk',
+  'tespit:surtuk',
+  'tespit:cizik',
+  'tespit:leke',
+  VehicleDamageActions.degisim,
   VehicleDamageActions.boya,
   VehicleDamageActions.kaporta,
-  VehicleDamageActions.degisim,
   VehicleDamageActions.temizle,
 ];
 
@@ -45,10 +50,31 @@ const Map<String, DamageActionStyle> _damageActionStyles =
         stripeAngle: 90,
         label: 'Temizle (Gri)',
       ),
+      // Intake Findings (Tespitler)
+      'tespit:vuruk': DamageActionStyle(
+        color: Color(0xFFFF9800), // Orange
+        label: 'Vuruk',
+      ),
+      'tespit:cizik': DamageActionStyle(
+        color: Color(0xFFFFD54F), // Amber/Yellow
+        label: 'Çizik',
+      ),
+      'tespit:surtuk': DamageActionStyle(
+        color: Color(0xFFA1887F), // Brownish
+        label: 'Sürtük',
+      ),
+      'tespit:leke': DamageActionStyle(
+        color: Color(0xFFBA68C8), // Purple
+        label: 'Leke',
+      ),
+      'tespit:kirik': DamageActionStyle(
+        color: Color(0xFFE57373), // Light Red
+        label: 'Kırık',
+      ),
     };
 
 /// Yeni action formatlarını (örn. "kaporta:onarim", "boya:yeniBoya")
-/// eski kategorik anahtarlara map eder.
+/// uygun anahtarlara map eder.
 String _canonicalActionKey(String action) {
   // Temizle özel case
   if (action == VehicleDamageActions.temizle) {
@@ -63,7 +89,10 @@ String _canonicalActionKey(String action) {
       case 'boya':
         return VehicleDamageActions.boya;
       case 'kaporta':
+        if (parts.last == 'change') return VehicleDamageActions.degisim;
         return VehicleDamageActions.kaporta;
+      case 'tespit':
+        return action; // Tespitlerde tipi koru (vuruk, cizik vb.)
       default:
         break;
     }
@@ -97,8 +126,12 @@ double? damageActionStripeAngle(String action) {
 
 /// Legend label for the given action (localized / descriptive text).
 String damageActionLabel(String action) {
+  // Tespitler için özel label yönetimi (extension'dan gelebilir ama burada da mapleyebiliriz)
   final key = _canonicalActionKey(action);
-  return _damageActionStyles[key]?.label ?? action;
+  if (_damageActionStyles.containsKey(key)) {
+    return _damageActionStyles[key]!.label;
+  }
+  return action;
 }
 
 /// Verilen action için öncelik index'i (küçük = daha öncelikli).

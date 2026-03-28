@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:xml/xml.dart' as xml;
 import 'package:vector_math/vector_math_64.dart' as vm;
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show VehiclePartsRegistry, damageActionStyle;
 import '../../utils/damage_action_styles.dart';
 
 /// Custom SVG widget that uses path_drawing and xml packages
@@ -131,9 +133,9 @@ class _CustomSvgPainter extends CustomPainter {
       ..color = Colors.black;
 
     for (final shape in svg.shapes) {
-      // Check if this part has multiple actions (striped pattern)
-      final actions = shape.partId != null && partActionsMap != null
-          ? partActionsMap![shape.partId]
+      final styleId = _getStyleId(shape);
+      final actions = styleId != null && partActionsMap != null
+          ? partActionsMap![styleId]
           : null;
 
       if (actions != null && actions.length > 1) {
@@ -150,8 +152,8 @@ class _CustomSvgPainter extends CustomPainter {
         // Fill color varsa fill olarak çiz
         // Eğer partColorMap'te bu part için renk varsa onu kullan
         Color? fillColor = shape.fillColor;
-        if (shape.partId != null && partColorMap != null) {
-          final mappedColor = partColorMap![shape.partId];
+        if (styleId != null && partColorMap != null) {
+          final mappedColor = partColorMap![styleId];
           if (mappedColor != null) {
             fillColor = mappedColor;
           }
@@ -189,6 +191,34 @@ class _CustomSvgPainter extends CustomPainter {
     }
 
     canvas.restore();
+  }
+
+  String? _getStyleId(SvgShape shape) {
+    // Technical ID from SVG
+    final technicalId = shape.partId;
+    if (technicalId == null) return null;
+
+    // 1. Direct match (e.g. 'on-tampon')
+    if (partColorMap?.containsKey(technicalId) == true ||
+        partActionsMap?.containsKey(technicalId) == true) {
+      return technicalId;
+    }
+
+    // 2. Alias resolution (e.g. 'path682' -> 'sag-orta-cam')
+    // Find the definition where this technicalId is an alias
+    try {
+      final def = VehiclePartsRegistry.all.firstWhere(
+        (p) => p.aliasFor == technicalId,
+      );
+      if (partColorMap?.containsKey(def.id) == true ||
+          partActionsMap?.containsKey(def.id) == true) {
+        return def.id;
+      }
+    } catch (_) {
+      // No alias found
+    }
+
+    return technicalId;
   }
 
   /// Draw striped pattern for multiple actions
@@ -299,8 +329,8 @@ class _CustomSvgPainter extends CustomPainter {
   bool shouldRepaint(covariant _CustomSvgPainter oldDelegate) {
     return oldDelegate.svg != svg ||
         oldDelegate.fit != fit ||
-        oldDelegate.partColorMap != partColorMap ||
-        oldDelegate.partActionsMap != partActionsMap;
+        !mapEquals(oldDelegate.partColorMap, partColorMap) ||
+        !mapEquals(oldDelegate.partActionsMap, partActionsMap);
   }
 
   double _getScale(Size size) {

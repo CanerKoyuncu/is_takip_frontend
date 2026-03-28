@@ -1,0 +1,25 @@
+name: vehicle_damage_map
+description: "Interactive vehicle damage map widget and SVG utilities."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_drawing: ^1.0.1
+  xml: ^6.3.0
+  vector_math: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/car-cutout-grouped.svg
+

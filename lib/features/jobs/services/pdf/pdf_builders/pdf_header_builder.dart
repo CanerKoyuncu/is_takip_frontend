@@ -5,8 +5,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import '../../../models/job_models.dart';
 import '../pdf_styles.dart';
+import '../pdf_report_metadata.dart';
 
 /// PDF header builder sınıfı
 class PdfHeaderBuilder {
@@ -14,7 +14,7 @@ class PdfHeaderBuilder {
 
   /// Header widget'ı oluşturur
   static pw.Widget build(
-    JobOrder job,
+    PdfReportMetadata metadata,
     pw.Font regularFont,
     pw.Font boldFont,
     pw.ImageProvider? logoImage,
@@ -69,21 +69,21 @@ class PdfHeaderBuilder {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'İŞ EMRİ RAPORU',
+                      metadata.title,
                       style: PdfStyles.textStyle(
                         regularFont: regularFont,
                         boldFont: boldFont,
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'İş Emri No: ${job.id.length >= 8 ? job.id.substring(0, 8).toUpperCase() : job.id.toUpperCase()}',
+                      'No: ${metadata.reportId.toUpperCase()}',
                       style: PdfStyles.textStyle(
                         regularFont: regularFont,
                         boldFont: boldFont,
-                        fontSize: 12,
+                        fontSize: 11,
                         color: PdfColors.grey700,
                       ),
                     ),
@@ -91,30 +91,31 @@ class PdfHeaderBuilder {
                 ),
               ],
             ),
-            // Status badge
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              decoration: pw.BoxDecoration(
-                color: PdfStyles.getStatusColor(job.status),
-                borderRadius: pw.BorderRadius.circular(8),
-              ),
-              child: pw.Text(
-                job.status.label,
-                style: PdfStyles.textStyle(
-                  regularFont: regularFont,
-                  boldFont: boldFont,
-                  color: PdfColors.white,
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 12,
+            // Status badge (Optional)
+            if (metadata.statusLabel != null)
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: pw.BoxDecoration(
+                  color: metadata.statusColor ?? PdfColors.grey600,
+                  borderRadius: pw.BorderRadius.circular(6),
+                ),
+                child: pw.Text(
+                  metadata.statusLabel!,
+                  style: PdfStyles.textStyle(
+                    regularFont: regularFont,
+                    boldFont: boldFont,
+                    color: PdfColors.white,
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 10,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
-        pw.Divider(height: 20),
+        pw.Divider(height: 20, thickness: 0.5, color: PdfColors.grey400),
       ],
     );
   }

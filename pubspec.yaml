@@ -33,6 +33,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   path_drawing: ^1.0.1
+  vehicle_damage_map:
+    path: ./packages/vehicle_damage_map
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -79,10 +81,12 @@ flutter:
   assets:
     - assets/images/
     - assets/logo.png
-    - assets/car-cutout.svg
     - assets/car-cutout-grouped.svg
     - assets/fonts/
-
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

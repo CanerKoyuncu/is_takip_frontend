@@ -8,16 +8,12 @@ import '../../../models/job_models.dart';
 import '../../../../auth/providers/auth_provider.dart';
 import '../../../models/vehicle_area.dart';
 import '../../../utils/vehicle_part_mapper.dart';
-import '../../../utils/svg_vehicle_part_loader.dart';
 import '../../../services/job_order_pdf_service.dart';
 import '../../../../../core/services/api_service_factory.dart';
 import '../../../../../core/widgets/error_state.dart';
 import '../../../../../core/widgets/loading_indicator.dart';
-import '../../widgets/vehicle_damage_map.dart';
-import 'package:vehicle_damage_map/vehicle_damage_map.dart'
-    show PartSupplySource;
+import 'package:vehicle_damage_map/vehicle_damage_map.dart';
 import '../../../widgets/task_list_item.dart';
-import '../../../widgets/task_photo_dialog.dart';
 import '../../../../../core/widgets/error_snackbar.dart';
 
 class JobOrderDetailScreen extends StatefulWidget {
@@ -772,92 +768,71 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
-                      FutureBuilder<List<VehiclePart>>(
-                        future: SvgVehiclePartLoader.instance.load(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const SizedBox(
-                              height: 300,
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-
-                          if (snapshot.hasError || !snapshot.hasData) {
-                            return SizedBox(
-                              height: 300,
-                              child: Center(
-                                child: Text(
-                                  'Araç şeması yüklenemedi',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                              ),
-                            );
-                          }
-
-                          final parts = snapshot.data!;
+                      Builder(
+                        builder: (context) {
                           final selections =
                               VehiclePartMapper.tasksToSelections(job.tasks);
 
-                          return VehicleDamageMap(
-                            parts: parts,
-                            initialSelections: selections,
-                            readOnly: true,
-                            showActionSheet: false,
-                            onPartTap: (part) {
-                              // Parça ID'sinden VehicleArea'ya dönüştür
-                              final area =
-                                  VehiclePartMapper.partIdToVehicleArea(
-                                    part.id,
+                          return AspectRatio(
+                            aspectRatio: 1668 / 1160,
+                            child: VehicleDamageMap(
+                              assetName: 'assets/car-cutout-grouped.svg',
+                              initialSelections: selections,
+                              readOnly: true,
+                              showActionSheet: false,
+                              onPartTapped: (partId) {
+                                // Parça ID'sinden VehicleArea'ya dönüştür
+                                final area =
+                                    VehiclePartMapper.partIdToVehicleArea(
+                                      partId,
+                                    );
+                                if (area == null) return;
+
+                                // Bu parçaya ait görevleri bul
+                                final tasksForPart = job.tasks
+                                    .where((task) => task.area == area)
+                                    .toList();
+
+                                if (tasksForPart.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Bu parça için görev bulunamadı',
+                                      ),
+                                    ),
                                   );
-                              if (area == null) return;
+                                  return;
+                                }
 
-                              // Bu parçaya ait görevleri bul
-                              final tasksForPart = job.tasks
-                                  .where((task) => task.area == area)
-                                  .toList();
-
-                              if (tasksForPart.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Bu parça için görev bulunamadı',
+                                // Görevleri gösteren bir dialog aç
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text('${area.label} Görevleri'),
+                                    content: SizedBox(
+                                      width: double.maxFinite,
+                                      child: ListView.builder(
+                                        shrinkWrap: true,
+                                        itemCount: tasksForPart.length,
+                                        itemBuilder: (context, index) {
+                                          final task = tasksForPart[index];
+                                          return TaskListItem(
+                                            task: task,
+                                            jobId: widget.jobId,
+                                          );
+                                        },
+                                      ),
                                     ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Kapat'),
+                                      ),
+                                    ],
                                   ),
                                 );
-                                return;
-                              }
-
-                              // Fotoğrafı olan ilk görevi bul
-                              final taskWithPhotos = tasksForPart.firstWhere(
-                                (task) => task.photos.isNotEmpty,
-                                orElse: () => tasksForPart.first,
-                              );
-
-                              // Eğer fotoğraf varsa ilk fotoğrafı göster
-                              if (taskWithPhotos.photos.isNotEmpty) {
-                                TaskPhotoDialog.show(
-                                  context,
-                                  photo: taskWithPhotos.photos.first,
-                                  jobId: widget.jobId,
-                                  taskId: taskWithPhotos.id,
-                                  showDownloadButton: true,
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${taskWithPhotos.area.label} - ${taskWithPhotos.operationType.label}\nBu görevde fotoğraf bulunmuyor',
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
+                              },
+                            ),
                           );
                         },
                       ),

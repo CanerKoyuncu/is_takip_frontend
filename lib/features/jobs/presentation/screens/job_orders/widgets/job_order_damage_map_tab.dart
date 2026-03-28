@@ -69,11 +69,12 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
                     const SizedBox(height: 16),
                     VehicleDamageMap(
                       assetName: 'assets/car-cutout-grouped.svg',
-                      fit: BoxFit.contain,
-                      partColorMap: _getPartColorMap(selectedDamages),
-                      partActionsMap: selectedDamages,
-                      onPartTapped: (partId) {
-                        _showDamageActionDialog(partId, damageProvider);
+                      initialSelections: selectedDamages,
+                      onSelectionsChanged: (updated) {
+                        damageProvider.updateDamageReportDraft(
+                          widget.jobOrderId,
+                          updated,
+                        );
                       },
                     ),
                   ],
@@ -177,20 +178,7 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
     );
   }
 
-  /// Parçaların renk haritasını oluştur
-  Map<String, Color> _getPartColorMap(Map<String, List<String>> damages) {
-    final colors = <String, Color>{};
-    for (final partId in damages.keys) {
-      final actions = damages[partId] ?? [];
-      if (actions.isNotEmpty) {
-        colors[partId] = _getActionColor(actions.first);
-      }
-    }
-    return colors;
-  }
-
-  /// Aksiyon türüne göre renk döndür
-  Color _getActionColor(String action) {
+  Color _getActionColorInList(String action) {
     switch (action) {
       case 'boya':
         return const Color(0xFF90CAF9); // Mavi
@@ -211,7 +199,7 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
     DamageReportProvider provider,
   ) {
     return damages.entries.map((entry) {
-      final partConfig = VehiclePartsConfig.getPartById(entry.key);
+      final partConfig = VehiclePartsRegistry.byId(entry.key);
       final partName = partConfig?.name ?? entry.key;
       final actions = entry.value;
 
@@ -238,9 +226,9 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
                       spacing: 4,
                       children: actions.map((action) {
                         return Chip(
-                          label: Text(_getActionLabel(action)),
+                          label: Text(_getActionLabelInList(action)),
                           visualDensity: VisualDensity.compact,
-                          backgroundColor: _getActionColor(action),
+                          backgroundColor: _getActionColorInList(action),
                           labelStyle: const TextStyle(fontSize: 12),
                         );
                       }).toList(),
@@ -262,38 +250,12 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
     }).toList();
   }
 
-  /// Hasar aksiyon dialog'unu göster
-  Future<void> _showDamageActionDialog(
-    String partId,
-    DamageReportProvider provider,
-  ) async {
-    final config = VehiclePartsConfig.getPartById(partId);
-    if (config == null) return;
-
-    final draft = provider.getDamageReportDraftForJob(widget.jobOrderId);
-    final currentActions = draft.damages[partId] ?? [];
-
-    if (!mounted) return;
-
-    final selected = await showDialog<List<String>>(
-      context: context,
-      builder: (context) => _DamageActionDialog(
-        partName: config.name,
-        allowedActions: config.allowedActions,
-        selectedActions: currentActions,
-      ),
-    );
-
-    if (selected != null && mounted) {
-      provider.updatePartDamage(widget.jobOrderId, partId, selected);
-    }
-  }
-
   /// Hasar raporunu kaydet
   void _saveDamageReport(DamageReportProvider provider) {
     provider.saveDamageReport(
       widget.jobOrderId,
       onSuccess: (report) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -304,6 +266,7 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
         );
       },
       onError: (error) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Hata: $error'), backgroundColor: Colors.red),
         );
@@ -311,7 +274,7 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
     );
   }
 
-  String _getActionLabel(String action) {
+  String _getActionLabelInList(String action) {
     switch (action) {
       case 'boya':
         return 'Boya';
@@ -319,112 +282,6 @@ class _JobOrderDamageMapTabState extends State<JobOrderDamageMapTab> {
         return 'Kaporta';
       case 'degisim':
         return 'Değişim';
-      case 'temizle':
-        return 'Temizle';
-      default:
-        return action;
-    }
-  }
-}
-
-/// Hasar Aksiyonu Seçim Dialog'u
-class _DamageActionDialog extends StatefulWidget {
-  const _DamageActionDialog({
-    required this.partName,
-    required this.allowedActions,
-    required this.selectedActions,
-  });
-
-  final String partName;
-  final List<String> allowedActions;
-  final List<String> selectedActions;
-
-  @override
-  State<_DamageActionDialog> createState() => _DamageActionDialogState();
-}
-
-class _DamageActionDialogState extends State<_DamageActionDialog> {
-  late Set<String> _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = widget.selectedActions.toSet();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: Text(
-                widget.partName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: widget.allowedActions.map((action) {
-                  return CheckboxListTile(
-                    title: Text(_getActionLabel(action)),
-                    value: _selected.contains(action),
-                    onChanged: (value) {
-                      setState(() {
-                        if (value ?? false) {
-                          _selected.add(action);
-                        } else {
-                          _selected.remove(action);
-                        }
-                      });
-                    },
-                    contentPadding: EdgeInsets.zero,
-                  );
-                }).toList(),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('İptal'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, _selected.toList()),
-                    child: const Text('Seç'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getActionLabel(String action) {
-    switch (action) {
-      case 'boya':
-        return 'Boya';
-      case 'kaporta':
-        return 'Kaporta';
-      case 'degisim':
-        return 'Parça Değişim';
       case 'temizle':
         return 'Temizle';
       default:

@@ -14,7 +14,8 @@
 /// - JobOrder: İş emri (ana model)
 
 import 'package:flutter/material.dart';
-import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show SparePartItem, PartSupplySource;
 
 import 'vehicle_area.dart';
 
@@ -100,6 +101,67 @@ enum JobTaskStatus {
 
   /// Tamamlandı - işlem bitmiş
   completed,
+}
+
+/// Yedek parça durumu enum'ı
+enum PartStatus {
+  /// Beklemede - henüz sipariş edilmemiş veya işlem bekliyor
+  beklemede,
+
+  /// Sipariş edildi - tedarik sürecinde
+  siparis_edildi,
+
+  /// Geldi - servise ulaştı
+  geldi,
+
+  /// Takıldı - araca monte edildi
+  takildi,
+}
+
+/// PartStatus extension'ı
+extension PartStatusX on PartStatus {
+  /// Durumun Türkçe etiketi
+  String get label {
+    switch (this) {
+      case PartStatus.beklemede:
+        return 'Beklemede';
+      case PartStatus.siparis_edildi:
+        return 'Sipariş Edildi';
+      case PartStatus.geldi:
+        return 'Geldi';
+      case PartStatus.takildi:
+        return 'Takıldı';
+    }
+  }
+
+  /// Durumun rengi
+  Color toColor(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    switch (this) {
+      case PartStatus.beklemede:
+        return scheme.outline.withOpacity(0.7);
+      case PartStatus.siparis_edildi:
+        return Colors.orange;
+      case PartStatus.geldi:
+        return Colors.blue;
+      case PartStatus.takildi:
+        return Colors.green;
+    }
+  }
+
+  /// Durumun ikonu
+  IconData get icon {
+    switch (this) {
+      case PartStatus.beklemede:
+        return Icons.hourglass_empty;
+      case PartStatus.siparis_edildi:
+        return Icons.shopping_cart_outlined;
+      case PartStatus.geldi:
+        return Icons.inventory_2_outlined;
+      case PartStatus.takildi:
+        return Icons.build_circle_outlined;
+    }
+  }
 }
 
 /// Görev engelleme nedeni enum'ı
@@ -233,6 +295,9 @@ extension TaskCategoryX on TaskCategory {
 /// Görevde yapılacak işlem tipini belirtir.
 /// Her işlem tipi bir kategoriye aittir.
 enum JobOperationType {
+  /// Teslim Alma - aracı teslim alırken yapılan genel kontrol
+  reception,
+
   // Kaporta kategorisi işlemleri
   change,
 
@@ -273,6 +338,8 @@ extension JobOperationTypeX on JobOperationType {
   String get label {
     switch (this) {
       // Kaporta kategorisi
+      case JobOperationType.reception:
+        return 'Teslim Alma';
       case JobOperationType.change:
         return 'Değişim';
       case JobOperationType.sokTak:
@@ -300,6 +367,8 @@ extension JobOperationTypeX on JobOperationType {
   /// İşlem tipinin ikonu
   IconData get icon {
     switch (this) {
+      case JobOperationType.reception:
+        return Icons.car_rental_outlined;
       case JobOperationType.change:
         return Icons.swap_horiz_outlined;
       // Kaporta kategorisi
@@ -328,6 +397,7 @@ extension JobOperationTypeX on JobOperationType {
   /// İşlem tipinin ait olduğu kategori
   TaskCategory get category {
     switch (this) {
+      case JobOperationType.reception:
       case JobOperationType.change:
       case JobOperationType.sokTak:
       case JobOperationType.onarim:
@@ -348,6 +418,9 @@ extension JobOperationTypeX on JobOperationType {
 ///
 /// Fotoğrafın ne amaçla çekildiğini belirtir.
 enum TaskPhotoType {
+  /// Teslim alma fotoğrafı - aracı teslim alırken çekilen genel fotoğraflar
+  reception,
+
   damage,
 
   /// Onarım fotoğrafı - işlem öncesi hasar durumu
@@ -370,6 +443,8 @@ extension TaskPhotoTypeX on TaskPhotoType {
   /// Fotoğraf tipinin Türkçe etiketi
   String get label {
     switch (this) {
+      case TaskPhotoType.reception:
+        return 'Teslim Alma Fotoğrafı';
       case TaskPhotoType.damage:
         return 'Hasar Fotoğrafı';
       case TaskPhotoType.onRepair:
@@ -490,7 +565,8 @@ class JobTask {
     this.blockingReason, // Engelleme nedeni (parça bekleniyor, eksper bekleniyor, vb.)
     this.isTaskAvailable = true, // Görev üzerinde çalışılabilir mi
     List<TaskPhoto> photos = const <TaskPhoto>[], // Fotoğraflar
-    List<TaskWorkSession> workSessions = const <TaskWorkSession>[], // Çalışma oturumları
+    List<TaskWorkSession> workSessions =
+        const <TaskWorkSession>[], // Çalışma oturumları
     List<SparePartItem> spareParts = const <SparePartItem>[], // Yedek parçalar
   }) : photos = List<TaskPhoto>.unmodifiable(photos),
        workSessions = List<TaskWorkSession>.unmodifiable(workSessions),

@@ -14,7 +14,7 @@ PDF oluşturma için Noto Sans font dosyasına ihtiyaç vardır.
    - `NotoSans.ttf` dosyasını bulun (veya herhangi bir Noto Sans TTF dosyası)
 
 3. **Dosyayı Bu Klasöre Kopyalayın:**
-   - `NotoSans.ttf` → `assets/fonts/NotoSans.ttf`
+   - `NotoSans.ttf` → `assets/fonts/NotoSans.ttf` q qq
 
 4. **Flutter Komutlarını Çalıştırın:**
    ```bash

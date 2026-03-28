@@ -1,5 +1,8 @@
 # "Build" files
 /dist
+/build/*
+!/build/web/
+!/build/web/**
 *.apk
 *.aab
 *.aar

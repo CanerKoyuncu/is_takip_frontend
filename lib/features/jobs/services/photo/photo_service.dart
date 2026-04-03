@@ -9,9 +9,9 @@
 
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/config/api_config.dart';
-import '../models/job_models.dart';
-import 'jobs_api_service.dart';
+import '../../../../core/config/api_config.dart';
+import '../../models/job_models.dart';
+import '../api/jobs_api_service.dart';
 
 /// Fotoğraf işlemleri servis sınıfı
 ///

@@ -6,11 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show PartSupplyStatus;
 
 import '../../../../providers/jobs_provider.dart';
 import '../../../../models/job_models.dart';
 import '../../../../models/vehicle_area.dart';
 import '../../../../utils/task_category_styles.dart';
+import '../../../../utils/duration_formatter.dart';
 import '../../../../../../core/widgets/error_snackbar.dart';
 import '../../../../../../core/widgets/photo_picker_dialog.dart';
 import '../../../../../../core/widgets/loading_snackbar.dart';
@@ -45,6 +48,30 @@ class TaskCard extends StatelessWidget {
       context,
       task.operationType.category,
     );
+    final taskPhotos = task.photos
+        .where((photo) => photo.type != TaskPhotoType.reception)
+        .toList();
+    final hasUndeliveredParts =
+        task.spareParts.isNotEmpty &&
+        task.spareParts.any(
+          (part) =>
+              part.status != PartSupplyStatus.geldi &&
+              part.status != PartSupplyStatus.takildi,
+        );
+    final canOverridePartBlock =
+        !task.isTaskAvailable &&
+        !hasUndeliveredParts &&
+        (task.blockingReason == TaskBlockingReason.partWaiting ||
+            task.blockingReason == TaskBlockingReason.supplyStage);
+
+    final Map<String, double> workerSeconds = {};
+    double totalWorkSeconds = 0;
+    for (final session in task.workSessions) {
+      final workerName = session.workerName ?? session.workerId ?? 'Bilinmeyen';
+      final seconds = session.durationInSeconds;
+      workerSeconds[workerName] = (workerSeconds[workerName] ?? 0) + seconds;
+      totalWorkSeconds += seconds;
+    }
 
     return Card(
       child: Padding(
@@ -131,11 +158,13 @@ class TaskCard extends StatelessWidget {
                 final hasBlockingReason = task.blockingReason != null;
                 final isVehicleUnavailable =
                     job != null && !job.isVehicleAvailable;
-                final isTaskUnavailable = !task.isTaskAvailable;
+                final isTaskUnavailable =
+                    !task.isTaskAvailable && !canOverridePartBlock;
 
                 if (!hasBlockingReason &&
                     !isVehicleUnavailable &&
-                    !isTaskUnavailable) {
+                    !isTaskUnavailable &&
+                    !hasUndeliveredParts) {
                   return const SizedBox.shrink();
                 }
 
@@ -213,6 +242,32 @@ class TaskCard extends StatelessWidget {
                                         fontWeight: FontWeight.w600,
                                         color: Colors.red.shade700,
                                       ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (hasUndeliveredParts) ...[
+                            if (isVehicleUnavailable || isTaskUnavailable)
+                              const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Parça teslimi tamam değil. İlgili görev başlatılamaz.',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.red.shade700,
+                                        ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -317,7 +372,7 @@ class TaskCard extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          'Toplam: ${task.totalWorkHours.toStringAsFixed(2)} saat',
+                          'Toplam: ${DurationFormatter.longFromSeconds(totalWorkSeconds)}',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: scheme.onSurfaceVariant,
@@ -327,9 +382,9 @@ class TaskCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...task.workerHours.entries.map((entry) {
+                    ...workerSeconds.entries.map((entry) {
                       final workerName = entry.key;
-                      final hours = entry.value;
+                      final seconds = entry.value;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Row(
@@ -347,7 +402,7 @@ class TaskCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${hours.toStringAsFixed(2)} saat',
+                              DurationFormatter.longFromSeconds(seconds),
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.w500,
@@ -362,12 +417,13 @@ class TaskCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (task.photos.isNotEmpty) ...[
+            if (taskPhotos.isNotEmpty) ...[
               const SizedBox(height: 12),
               TaskPhotosList(
-                photos: task.photos,
+                photos: taskPhotos,
                 jobId: jobId,
                 taskId: task.id,
+                title: 'Gorev Fotograflari',
                 showDownloadButton: false,
                 height: 100,
                 thumbnailSize: 100,
@@ -495,7 +551,9 @@ class TaskCard extends StatelessWidget {
                             final job = provider.jobById(jobId);
                             final canStart =
                                 (job?.isVehicleAvailable ?? true) &&
-                                task.isTaskAvailable;
+                                (task.isTaskAvailable ||
+                                    canOverridePartBlock) &&
+                                !hasUndeliveredParts;
 
                             return FilledButton.icon(
                               onPressed: canStart
@@ -549,10 +607,15 @@ class TaskCard extends StatelessWidget {
                       else if (task.status == JobTaskStatus.inProgress) ...[
                         FilledButton.icon(
                           onPressed: () async {
-                            final note = await showDialog<String?>(
-                              context: context,
-                              builder: (context) => PauseTaskDialog(task: task),
-                            );
+                            final result =
+                                await showDialog<PauseTaskDialogResult>(
+                                  context: context,
+                                  builder: (context) =>
+                                      PauseTaskDialog(task: task),
+                                );
+                            if (!context.mounted) return;
+                            if (result == null || !result.confirmed) return;
+
                             if (context.mounted) {
                               try {
                                 LoadingSnackbar.show(
@@ -562,7 +625,8 @@ class TaskCard extends StatelessWidget {
                                 await provider.pauseTask(
                                   jobId: jobId,
                                   taskId: task.id,
-                                  note: note,
+                                  confirmed: result.confirmed,
+                                  note: result.note,
                                 );
                                 if (context.mounted) {
                                   LoadingSnackbar.hide(context);
@@ -626,7 +690,9 @@ class TaskCard extends StatelessWidget {
                             final job = provider.jobById(jobId);
                             final canStart =
                                 (job?.isVehicleAvailable ?? true) &&
-                                task.isTaskAvailable;
+                                (task.isTaskAvailable ||
+                                    canOverridePartBlock) &&
+                                !hasUndeliveredParts;
 
                             return FilledButton.icon(
                               onPressed: canStart

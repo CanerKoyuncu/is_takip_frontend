@@ -7,8 +7,9 @@ import '../../../providers/jobs_provider.dart';
 import '../../../models/job_models.dart';
 import '../../../../auth/providers/auth_provider.dart';
 import '../../../models/vehicle_area.dart';
+import '../../../utils/duration_formatter.dart';
 import '../../../utils/vehicle_part_mapper.dart';
-import '../../../services/job_order_pdf_service.dart';
+import '../../../services/pdf/pdf_job_order_service.dart';
 import '../../../../../core/widgets/error_state.dart';
 import '../../../../../core/widgets/loading_indicator.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart';
@@ -673,6 +674,7 @@ class _JobOrderDetailScreenState extends State<JobOrderDetailScreen> {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
                                     child: Column(
@@ -1395,18 +1397,6 @@ class _WorkerSummarySection extends StatelessWidget {
       );
     }
 
-    String _formatHours(double hours) {
-      final h = hours.floor();
-      final m = ((hours - h) * 60).round();
-      if (h > 0 && m > 0) {
-        return '$h s ${m} dk';
-      } else if (h > 0) {
-        return '$h s';
-      } else {
-        return '$m dk';
-      }
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1452,7 +1442,7 @@ class _WorkerSummarySection extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _formatHours(entry.value),
+                  DurationFormatter.longFromHours(entry.value),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,

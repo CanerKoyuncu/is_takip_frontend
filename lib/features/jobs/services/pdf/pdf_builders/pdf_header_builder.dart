@@ -33,11 +33,11 @@ class PdfHeaderBuilder {
                 // Logo
                 if (logoImage != null) ...[
                   pw.Container(
-                    width: 60,
-                    height: 60,
+                    width: 100,
+                    height: 100,
                     constraints: const pw.BoxConstraints(
-                      maxWidth: 60,
-                      maxHeight: 60,
+                      maxWidth: 100,
+                      maxHeight: 100,
                     ),
                     child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                   ),
@@ -46,8 +46,8 @@ class PdfHeaderBuilder {
                   // Debug: Show placeholder if logo not loaded
                   if (kDebugMode)
                     pw.Container(
-                      width: 60,
-                      height: 60,
+                      width: 80,
+                      height: 80,
                       decoration: pw.BoxDecoration(
                         border: pw.Border.all(color: PdfColors.red),
                       ),
@@ -92,7 +92,7 @@ class PdfHeaderBuilder {
               ],
             ),
             // Status badge (Optional)
-            if (metadata.statusLabel != null)
+            if (metadata.statusLabel != "" && metadata.statusLabel != null)
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
                   horizontal: 14,

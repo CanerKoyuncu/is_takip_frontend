@@ -26,6 +26,10 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
   JobStatus? _selectedStage;
   final ImagePicker _imagePicker = ImagePicker();
 
+  List<TaskPhotoType> get _taskPhotoTypes => TaskPhotoType.values
+      .where((type) => type != TaskPhotoType.reception)
+      .toList();
+
   @override
   void dispose() {
     _noteController.dispose();
@@ -35,8 +39,6 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
 
   IconData _getPhotoTypeIcon(TaskPhotoType type) {
     switch (type) {
-      case TaskPhotoType.reception:
-        return Icons.car_rental_outlined;
       case TaskPhotoType.damage:
         return Icons.broken_image_outlined;
       case TaskPhotoType.completion:
@@ -47,8 +49,8 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
         return Icons.format_paint_outlined;
       case TaskPhotoType.onClean:
         return Icons.cleaning_services_outlined;
-      case TaskPhotoType.completion:
-        return Icons.photo_outlined;
+      case TaskPhotoType.reception:
+        return Icons.car_rental_outlined;
     }
   }
 
@@ -60,8 +62,7 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
 
     // Eğer source belirtilmemişse dialog göster
     ImageSource? selectedSource = source;
-    if (selectedSource == null) {
-      selectedSource = await showDialog<ImageSource?>(
+    selectedSource ??= await showDialog<ImageSource?>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Fotoğraf Kaynağı Seç'),
@@ -93,7 +94,6 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
           ),
         ),
       );
-    }
 
     if (selectedSource == null || !mounted) return;
 
@@ -383,7 +383,7 @@ class _AddDataToJobScreenState extends State<AddDataToJobScreen> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: TaskPhotoType.values.map((type) {
+                          children: _taskPhotoTypes.map((type) {
                             final isSelected = _selectedPhotoType == type;
                             return FilterChip(
                               selected: isSelected,

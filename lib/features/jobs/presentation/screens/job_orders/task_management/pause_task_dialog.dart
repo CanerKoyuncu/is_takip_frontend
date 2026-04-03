@@ -6,6 +6,13 @@ import 'package:flutter/material.dart';
 import '../../../../models/job_models.dart';
 import '../../../../models/vehicle_area.dart';
 
+class PauseTaskDialogResult {
+  const PauseTaskDialogResult({required this.confirmed, this.note});
+
+  final bool confirmed;
+  final String? note;
+}
+
 /// Pause task dialog widget'ı
 ///
 /// Kullanıcıya görevi duraklatma seçeneği sunar.
@@ -60,15 +67,20 @@ class _PauseTaskDialogState extends State<PauseTaskDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(null),
+          onPressed: () => Navigator.of(
+            context,
+          ).pop(const PauseTaskDialogResult(confirmed: false)),
           child: const Text('İptal'),
         ),
         FilledButton(
           onPressed: () {
             Navigator.of(context).pop(
-              _noteController.text.trim().isEmpty
-                  ? null
-                  : _noteController.text.trim(),
+              PauseTaskDialogResult(
+                confirmed: true,
+                note: _noteController.text.trim().isEmpty
+                    ? null
+                    : _noteController.text.trim(),
+              ),
             );
           },
           style: FilledButton.styleFrom(backgroundColor: Colors.orange),

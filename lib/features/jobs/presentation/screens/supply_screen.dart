@@ -243,6 +243,8 @@ class _SupplyPartCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                _buildSwitchSupplySourceButton(context),
+                const SizedBox(width: 8),
                 _buildActionButton(context),
                 const SizedBox(width: 8),
                 IconButton.outlined(
@@ -315,47 +317,90 @@ class _SupplyPartCard extends StatelessWidget {
     );
   }
 
+  Widget _buildSwitchSupplySourceButton(BuildContext context) {
+    final isInsurance = item.part.supplySource == PartSupplySource.sigorta;
+    if (!isInsurance || item.part.status == PartSupplyStatus.takildi) {
+      return const SizedBox.shrink();
+    }
+
+    return OutlinedButton.icon(
+      onPressed: () async {
+        await context.read<JobsProvider>().updateSparePartById(
+          partId: item.id,
+          supplySource: PartSupplySource.kendi,
+        );
+        await onSaved();
+      },
+      icon: const Icon(Icons.swap_horiz, size: 16),
+      label: const Text('Kendi Tedarige Cevir', style: TextStyle(fontSize: 12)),
+      style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+    );
+  }
+
   void _showEditDialog(BuildContext context) {
     final codeController = TextEditingController(text: item.part.partCode);
     final notesController = TextEditingController(text: item.part.notes);
+    PartSupplySource selectedSupplySource = item.part.supplySource;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(item.part.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: codeController,
-              decoration: const InputDecoration(labelText: 'Parça Kodu'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(item.part.name),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<PartSupplySource>(
+                value: selectedSupplySource,
+                decoration: const InputDecoration(labelText: 'Tedarik Tipi'),
+                items: const [
+                  DropdownMenuItem(
+                    value: PartSupplySource.sigorta,
+                    child: Text('Sigorta'),
+                  ),
+                  DropdownMenuItem(
+                    value: PartSupplySource.kendi,
+                    child: Text('Kendi Tedarigimiz'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setDialogState(() => selectedSupplySource = value);
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: codeController,
+                decoration: const InputDecoration(labelText: 'Parça Kodu'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(labelText: 'Notlar'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('İptal'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: notesController,
-              decoration: const InputDecoration(labelText: 'Notlar'),
-              maxLines: 2,
+            FilledButton(
+              onPressed: () async {
+                await context.read<JobsProvider>().updateSparePartById(
+                  partId: item.id,
+                  supplySource: selectedSupplySource,
+                  partCode: codeController.text,
+                  notes: notesController.text,
+                );
+                Navigator.pop(context);
+                await onSaved();
+              },
+              child: const Text('Kaydet'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await context.read<JobsProvider>().updateSparePartById(
-                partId: item.id,
-                partCode: codeController.text,
-                notes: notesController.text,
-              );
-              Navigator.pop(context);
-              await onSaved();
-            },
-            child: const Text('Kaydet'),
-          ),
-        ],
       ),
     );
   }

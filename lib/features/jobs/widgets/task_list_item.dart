@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/job_models.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart'
-    show SparePartItem, PartSupplySource;
+    show SparePartItem, PartSupplySource, PartSupplyStatus;
 import '../utils/task_category_styles.dart';
 import '../models/vehicle_area.dart';
 import '../providers/jobs_provider.dart';
@@ -40,6 +40,7 @@ class TaskListItem extends StatelessWidget {
     this.showPauseButton = false,
     this.noteOverride,
     this.allowInlineNoteEdit = false,
+    this.allowInlinePartStatusEdit = false,
     this.onStatusChanged,
   });
 
@@ -80,6 +81,10 @@ class TaskListItem extends StatelessWidget {
   /// "Not Ekle / Düzenle" butonu gösterir.
   final bool allowInlineNoteEdit;
 
+  /// İş emri detayında görev içindeki parça durumunu düzenleyebilmek için
+  /// her parça etiketine durum menüsü ekler.
+  final bool allowInlinePartStatusEdit;
+
   /// Harici not değeri (ayrı note tablosu için).
   final String? noteOverride;
 
@@ -87,6 +92,11 @@ class TaskListItem extends StatelessWidget {
   ///
   /// Özellikle kiosk modunda, görev listelerini otomatik yenilemek için kullanılabilir.
   final Future<void> Function()? onStatusChanged;
+
+  bool _isPartDelivered(SparePartItem part) {
+    return part.status == PartSupplyStatus.geldi ||
+        part.status == PartSupplyStatus.takildi;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +107,17 @@ class TaskListItem extends StatelessWidget {
       task.operationType.category,
     );
     final noteText = noteOverride ?? task.note;
+    final taskPhotos = task.photos
+        .where((photo) => photo.type != TaskPhotoType.reception)
+        .toList();
+    final hasUndeliveredParts =
+        task.spareParts.isNotEmpty &&
+        task.spareParts.any((part) => !_isPartDelivered(part));
+    final canOverridePartBlock =
+        !task.isTaskAvailable &&
+        !hasUndeliveredParts &&
+        (task.blockingReason == TaskBlockingReason.partWaiting ||
+            task.blockingReason == TaskBlockingReason.supplyStage);
 
     Widget content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -165,8 +186,13 @@ class TaskListItem extends StatelessWidget {
                         final hasBlockingReason = task.blockingReason != null;
                         final isVehicleUnavailable =
                             job != null && !job.isVehicleAvailable;
+                        final isTaskUnavailable =
+                            !task.isTaskAvailable && !canOverridePartBlock;
 
-                        if (!hasBlockingReason && !isVehicleUnavailable) {
+                        if (!hasBlockingReason &&
+                            !isVehicleUnavailable &&
+                            !isTaskUnavailable &&
+                            !hasUndeliveredParts) {
                           return const SizedBox.shrink();
                         }
 
@@ -212,13 +238,64 @@ class TaskListItem extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                            if (isTaskUnavailable) ...[
+                              if (hasBlockingReason || isVehicleUnavailable)
+                                const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.block_outlined,
+                                    size: 12,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Görev üzerinde çalışılamaz',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if (hasUndeliveredParts) ...[
+                              if (hasBlockingReason ||
+                                  isVehicleUnavailable ||
+                                  isTaskUnavailable)
+                                const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 12,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      'Parça teslimi tamam değil, görev başlatılamaz',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.red.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         );
                       },
                     ),
                     if (task.spareParts.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _SparePartsView(spareParts: task.spareParts),
+                      _SparePartsView(
+                        jobId: jobId,
+                        taskId: task.id,
+                        spareParts: task.spareParts,
+                        allowInlinePartStatusEdit: allowInlinePartStatusEdit,
+                      ),
                     ],
                     if (noteText != null && noteText.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -323,7 +400,10 @@ class TaskListItem extends StatelessWidget {
               builder: (context) {
                 final provider = context.read<JobsProvider>();
                 final job = provider.jobById(jobId);
-                final canStart = job?.isVehicleAvailable ?? true;
+                final canStart =
+                    (job?.isVehicleAvailable ?? true) &&
+                    (task.isTaskAvailable || canOverridePartBlock) &&
+                    !hasUndeliveredParts;
 
                 return Row(
                   children: [
@@ -371,7 +451,11 @@ class TaskListItem extends StatelessWidget {
                       Expanded(
                         child: Builder(
                           builder: (context) {
-                            final canStart = job?.isVehicleAvailable ?? true;
+                            final canStart =
+                                (job?.isVehicleAvailable ?? true) &&
+                                (task.isTaskAvailable ||
+                                    canOverridePartBlock) &&
+                                !hasUndeliveredParts;
                             return FilledButton.icon(
                               onPressed: canStart
                                   ? () => _resumeTask(context)
@@ -388,12 +472,13 @@ class TaskListItem extends StatelessWidget {
             ),
           ],
           // Photos section
-          if (showPhotos && task.photos.isNotEmpty) ...[
+          if (showPhotos && taskPhotos.isNotEmpty) ...[
             const SizedBox(height: 12),
             TaskPhotosList(
-              photos: task.photos,
+              photos: taskPhotos,
               jobId: jobId,
               taskId: task.id,
+              title: 'Görev Fotoğrafları',
               showDownloadButton: showDownloadButton,
               onPhotoTap:
                   onPhotoTap ??
@@ -523,16 +608,22 @@ class TaskListItem extends StatelessWidget {
 
   Future<void> _pauseTask(BuildContext context) async {
     final provider = context.read<JobsProvider>();
-    final note = await showDialog<String?>(
+    final result = await showDialog<PauseTaskDialogResult>(
       context: context,
       builder: (context) => PauseTaskDialog(task: task),
     );
 
     if (!context.mounted) return;
+    if (result == null || !result.confirmed) return;
 
     try {
       LoadingSnackbar.show(context, message: 'Görev duraklatılıyor...');
-      await provider.pauseTask(jobId: jobId, taskId: task.id, note: note);
+      await provider.pauseTask(
+        jobId: jobId,
+        taskId: task.id,
+        confirmed: result.confirmed,
+        note: result.note,
+      );
       if (context.mounted) {
         LoadingSnackbar.hide(context);
         ErrorSnackbar.showSuccess(context, 'Görev duraklatıldı');
@@ -846,9 +937,44 @@ class _ChecklistNoteView extends StatelessWidget {
 }
 
 class _SparePartsView extends StatelessWidget {
-  const _SparePartsView({required this.spareParts});
+  const _SparePartsView({
+    required this.jobId,
+    required this.taskId,
+    required this.spareParts,
+    required this.allowInlinePartStatusEdit,
+  });
+
+  final String jobId;
+  final String taskId;
 
   final List<SparePartItem> spareParts;
+  final bool allowInlinePartStatusEdit;
+
+  String _statusLabel(PartSupplyStatus status) {
+    switch (status) {
+      case PartSupplyStatus.beklemede:
+        return 'Beklemede';
+      case PartSupplyStatus.siparisEdildi:
+        return 'Sipariste';
+      case PartSupplyStatus.geldi:
+        return 'Geldi';
+      case PartSupplyStatus.takildi:
+        return 'Takildi';
+    }
+  }
+
+  Future<void> _updatePartStatus({
+    required BuildContext context,
+    required SparePartItem item,
+    required PartSupplyStatus status,
+  }) async {
+    await context.read<JobsProvider>().updateSparePart(
+      jobId: jobId,
+      taskId: taskId,
+      partName: item.name,
+      status: status,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -880,6 +1006,10 @@ class _SparePartsView extends StatelessWidget {
           runSpacing: 4,
           children: spareParts.map((item) {
             final isInsurance = item.supplySource == PartSupplySource.sigorta;
+            final isDelivered =
+                item.status == PartSupplyStatus.geldi ||
+                item.status == PartSupplyStatus.takildi;
+            final statusColor = isDelivered ? Colors.green : Colors.orange;
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -916,6 +1046,78 @@ class _SparePartsView extends StatelessWidget {
                     size: 10,
                     color: isInsurance ? Colors.blue : Colors.teal,
                   ),
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _statusLabel(item.status),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 9,
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (allowInlinePartStatusEdit) ...[
+                    const SizedBox(width: 2),
+                    PopupMenuButton<PartSupplyStatus>(
+                      tooltip: 'Parça durumunu değiştir',
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        size: 12,
+                        color: theme.colorScheme.primary,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(width: 24),
+                      onSelected: (status) async {
+                        try {
+                          await _updatePartStatus(
+                            context: context,
+                            item: item,
+                            status: status,
+                          );
+                          if (context.mounted) {
+                            ErrorSnackbar.showSuccess(
+                              context,
+                              'Parça durumu güncellendi',
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ErrorSnackbar.showError(
+                              context,
+                              'Parça durumu güncellenirken hata: $e',
+                            );
+                          }
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem<PartSupplyStatus>(
+                          value: PartSupplyStatus.beklemede,
+                          child: Text('Beklemede'),
+                        ),
+                        const PopupMenuItem<PartSupplyStatus>(
+                          value: PartSupplyStatus.siparisEdildi,
+                          child: Text('Sipariş Edildi'),
+                        ),
+                        const PopupMenuItem<PartSupplyStatus>(
+                          value: PartSupplyStatus.geldi,
+                          child: Text('Geldi'),
+                        ),
+                        const PopupMenuItem<PartSupplyStatus>(
+                          value: PartSupplyStatus.takildi,
+                          child: Text('Takıldı'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             );

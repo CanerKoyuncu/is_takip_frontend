@@ -18,6 +18,8 @@ import '../../../models/vehicle_area.dart';
 import '../../../utils/vehicle_part_mapper.dart';
 import '../../../utils/svg_vehicle_part_loader.dart';
 import '../../../utils/damage_map_image_generator.dart';
+import 'package:vehicle_damage_map/vehicle_damage_map.dart'
+    show PartSupplyStatus;
 
 class AvailableTasksScreen extends StatefulWidget {
   const AvailableTasksScreen({super.key});
@@ -96,6 +98,15 @@ class _ChecklistNotePreview extends StatelessWidget {
 }
 
 class _AvailableTasksScreenState extends State<AvailableTasksScreen> {
+  bool _hasUndeliveredParts(JobTask task) {
+    if (task.spareParts.isEmpty) return false;
+    return task.spareParts.any(
+      (part) =>
+          part.status != PartSupplyStatus.geldi &&
+          part.status != PartSupplyStatus.takildi,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -247,6 +258,7 @@ class _AvailableTasksScreenState extends State<AvailableTasksScreen> {
             ),
             trailing: _buildDamageMapThumbnail(job),
             children: job.tasks.map((task) {
+              final hasUndeliveredParts = _hasUndeliveredParts(task);
               return ListTile(
                 leading: Icon(
                   Icons.task_outlined,
@@ -256,11 +268,25 @@ class _AvailableTasksScreenState extends State<AvailableTasksScreen> {
                   '${task.area.label} - ${task.operationType.label}',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                subtitle: task.note != null && task.note!.isNotEmpty
-                    ? _ChecklistNotePreview(text: task.note!)
-                    : null,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (task.note != null && task.note!.isNotEmpty)
+                      _ChecklistNotePreview(text: task.note!),
+                    if (hasUndeliveredParts)
+                      Text(
+                        'Parça teslimi tamamlanmadan görev alınamaz',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
                 trailing: FilledButton.icon(
-                  onPressed: () => _assignTask(job.id, task.id),
+                  onPressed: hasUndeliveredParts
+                      ? null
+                      : () => _assignTask(job.id, task.id),
                   icon: const Icon(Icons.add_task, size: 18),
                   label: const Text('Al'),
                 ),

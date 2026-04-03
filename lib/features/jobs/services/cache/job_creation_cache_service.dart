@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/reception_models.dart';
+import '../../models/reception_models.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
 
 /// İş emri oluşturma ekranı için cache servisi.
@@ -20,6 +20,9 @@ class JobCreationCacheService {
     required List<ReceptionPhoto> receptionPhotos,
     required String generalNotes,
     required List<String> requiredParts,
+    String deliveredBy = '',
+    String receivedBy = '',
+    String defects = '',
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -34,6 +37,9 @@ class JobCreationCacheService {
       'receptionPhotos': receptionPhotos.map((p) => p.toMap()).toList(),
       'generalNotes': generalNotes,
       'requiredParts': requiredParts,
+      'deliveredBy': deliveredBy,
+      'receivedBy': receivedBy,
+      'defects': defects,
       'updatedAt': DateTime.now().toIso8601String(),
     };
 

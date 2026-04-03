@@ -3,7 +3,7 @@
 /// Görev başlatılırken personel seçimi için kullanılır.
 import 'package:flutter/material.dart';
 import '../../models/worker_model.dart';
-import '../../services/workers_api_service.dart';
+import '../../services/api/workers_api_service.dart';
 import '../../../../core/services/api_service_factory.dart';
 
 class WorkerSelectDialog extends StatefulWidget {

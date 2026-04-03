@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../services/reception_api_service.dart';
+import '../../../services/api/reception_api_service.dart';
+import '../../../utils/server_datetime_parser.dart';
 import '../../../../../core/services/api_service_factory.dart';
 import 'reception_detail_screen.dart';
 
@@ -59,8 +60,9 @@ class _ReceptionListScreenState extends State<ReceptionListScreen> {
   String _formatDate(dynamic raw) {
     if (raw == null) return '-';
     try {
-      final dt = DateTime.parse(raw.toString());
-      return DateFormat('dd.MM.yyyy HH:mm', 'tr_TR').format(dt.toLocal());
+      final dt = ServerDateTimeParser.parseNullable(raw);
+      if (dt == null) return '-';
+      return DateFormat('dd.MM.yyyy HH:mm', 'tr_TR').format(dt);
     } catch (_) {
       return raw.toString();
     }

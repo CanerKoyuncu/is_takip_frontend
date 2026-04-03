@@ -20,6 +20,7 @@ class PdfVehicleInfoBuilder {
     required pw.Font boldFont,
   }) {
     return pw.Container(
+      width: double.infinity,
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300, width: 0.5),

@@ -21,6 +21,7 @@ class PdfInfoSectionBuilder {
     final entries = data.entries.toList();
 
     return pw.Container(
+      width: double.infinity,
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300, width: 0.5),

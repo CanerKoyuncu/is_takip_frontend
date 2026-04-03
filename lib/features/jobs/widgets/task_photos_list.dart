@@ -21,6 +21,7 @@ class TaskPhotosList extends StatelessWidget {
     required this.photos,
     required this.jobId,
     required this.taskId,
+    this.title,
     this.showDownloadButton = true,
     this.onPhotoTap,
     this.height = 80,
@@ -35,6 +36,9 @@ class TaskPhotosList extends StatelessWidget {
 
   /// Görev ID'si
   final String taskId;
+
+  /// Başlık (varsayılan: Fotoğraflar)
+  final String? title;
 
   /// İndirme butonu göster? (varsayılan: true)
   final bool showDownloadButton;
@@ -62,7 +66,7 @@ class TaskPhotosList extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Fotoğraflar (${photos.length})',
+              '${title ?? 'Fotoğraflar'} (${photos.length})',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,

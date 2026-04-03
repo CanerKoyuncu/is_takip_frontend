@@ -2,6 +2,8 @@
 ///
 /// İş emirleri sırasında oluşturulan araç hasar raporlarını temsil eder.
 
+import '../utils/server_datetime_parser.dart';
+
 class DamageReport {
   DamageReport({
     required this.id,
@@ -38,12 +40,8 @@ class DamageReport {
       jobOrderId: json['jobOrderId'] as String? ?? '',
       damages: _parseDamages(json['damages']),
       notes: json['notes'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : null,
+      createdAt: ServerDateTimeParser.parseNullable(json['createdAt']),
+      updatedAt: ServerDateTimeParser.parseNullable(json['updatedAt']),
     );
   }
 

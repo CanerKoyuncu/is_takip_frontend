@@ -17,7 +17,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/job_models.dart';
 import '../models/job_task_draft.dart';
-import '../services/jobs_api_service.dart';
+import '../services/api/jobs_api_service.dart';
 import '../utils/download_helper_stub.dart'
     if (dart.library.html) '../utils/download_helper_web.dart'
     as download_helper;
@@ -304,9 +304,12 @@ class JobsProvider extends ChangeNotifier {
 
       if (draftTask.photoPaths.isEmpty) continue;
 
-      final photoType = draftTask.operationType == JobOperationType.reception
-          ? TaskPhotoType.reception
-          : TaskPhotoType.damage;
+      // Teslim alma fotoğrafları iş emri görev fotoğraflarına aktarılmaz.
+      if (draftTask.operationType == JobOperationType.reception) {
+        continue;
+      }
+
+      final photoType = TaskPhotoType.damage;
 
       for (final photoPath in draftTask.photoPaths) {
         try {
@@ -450,12 +453,18 @@ class JobsProvider extends ChangeNotifier {
   /// Parametreler:
   /// - jobId: İş emri ID'si
   /// - taskId: Görev ID'si
+  /// - confirmed: Kullanıcı onayı var mı
   /// - note: Duraklatma notu (opsiyonel)
   Future<void> pauseTask({
     required String jobId,
     required String taskId,
+    required bool confirmed,
     String? note,
   }) async {
+    if (!confirmed) {
+      return;
+    }
+
     // İş emrini cache'de bul
     final index = _jobs.indexWhere((job) => job.id == jobId);
     if (index == -1) {
@@ -694,8 +703,10 @@ class JobsProvider extends ChangeNotifier {
 
   Future<void> updateSparePartById({
     required String partId,
+    String? jobId,
     String? name,
     PartSupplyStatus? status,
+    PartSupplySource? supplySource,
     String? partCode,
     String? notes,
   }) async {
@@ -704,9 +715,13 @@ class JobsProvider extends ChangeNotifier {
         partId: partId,
         name: name,
         status: status,
+        supplySource: supplySource,
         partCode: partCode,
         notes: notes,
       );
+      if (jobId != null) {
+        await _refreshJob(jobId);
+      }
     } catch (e) {
       _setError('Yedek parça güncellenirken hata oluştu: ${e.toString()}');
       rethrow;

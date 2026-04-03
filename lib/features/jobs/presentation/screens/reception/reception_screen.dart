@@ -8,12 +8,12 @@ import 'package:vehicle_damage_map/vehicle_damage_map.dart'
         VehiclePartSelections,
         DamageOperationType,
         VehiclePartsRegistry,
-    damageActionLabel,
-    damageActionColor;
+        damageActionLabel,
+        damageActionColor;
 import '../../../models/reception_models.dart';
-import '../../../services/job_creation_cache_service.dart';
-import '../../../services/reception_api_service.dart';
-import '../../../services/reception_report_service.dart';
+import '../../../services/cache/job_creation_cache_service.dart';
+import '../../../services/api/reception_api_service.dart';
+import '../../../services/pdf/pdf_reception_report_service.dart';
 import '../../../../../core/services/api_service_factory.dart';
 import 'photo_annotation_screen.dart';
 
@@ -31,6 +31,9 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
   final _brandController = TextEditingController();
   final _modelController = TextEditingController();
   final _generalNoteController = TextEditingController();
+  final _deliveredByController = TextEditingController();
+  final _receivedByController = TextEditingController();
+  final _defectsController = TextEditingController();
 
   final ImagePicker _imagePicker = ImagePicker();
   final _cacheService = JobCreationCacheService();
@@ -57,6 +60,9 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
         _brandController.text = draft['brand'] ?? '';
         _modelController.text = draft['model'] ?? '';
         _generalNoteController.text = draft['generalNotes'] ?? '';
+        _deliveredByController.text = draft['deliveredBy'] ?? '';
+        _receivedByController.text = draft['receivedBy'] ?? '';
+        _defectsController.text = draft['defects'] ?? '';
         _photos = draft['receptionPhotos'] ?? [];
         _damageSelections = draft['selections'] ?? {};
         _isInitialized = true;
@@ -77,6 +83,9 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
       receptionPhotos: _photos,
       generalNotes: _generalNoteController.text,
       requiredParts: [],
+      deliveredBy: _deliveredByController.text,
+      receivedBy: _receivedByController.text,
+      defects: _defectsController.text,
     );
   }
 
@@ -158,7 +167,9 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
     if (damageLabels.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Önce seçili parça için en az bir hasar tespiti işaretleyin.'),
+          content: Text(
+            'Önce seçili parça için en az bir hasar tespiti işaretleyin.',
+          ),
         ),
       );
       return;
@@ -170,6 +181,33 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
       damageTypes: damageLabels,
       damageActions: damageActions,
     );
+  }
+
+  bool _isValidServerPath(String path) {
+    /// Validate that path is a valid server path (not binary/local data)
+    if (path.isEmpty) return false;
+
+    // Reject binary data, local paths, URLs
+    if (path.startsWith(
+      RegExp(r'^(data:|blob:|file://|http|/data|/var|/tmp|C:|\D:)'),
+    )) {
+      return false;
+    }
+
+    // Reject path traversal
+    if (path.contains('..')) return false;
+
+    // Accept only server paths from uploads/reception/ or reception/
+    if (!path.startsWith(RegExp(r'^(uploads/reception/|reception/)'))) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _isValidPhotoId(String id) {
+    final value = id.trim();
+    return RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(value);
   }
 
   Future<void> _saveReceptionForm() async {
@@ -187,13 +225,77 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
     }
 
     try {
+      final uploadedPhotos = <Map<String, dynamic>>[];
+      for (final photo in _photos) {
+        final originalUpload = await _receptionApi.uploadReceptionPhoto(
+          plate: plate,
+          imagePath: photo.originalPath,
+          variant: 'original',
+        );
+
+        // Validate uploaded photo id/path
+        if (!_isValidPhotoId(originalUpload.photoId) ||
+            !_isValidServerPath(originalUpload.path)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fotoğraf upload hatası: Geçersiz foto referansı'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        String? annotatedPhotoId;
+        String? annotatedUploadPath;
+        if (photo.annotatedPath != null &&
+            photo.annotatedPath!.trim().isNotEmpty) {
+          final annotatedUpload = await _receptionApi.uploadReceptionPhoto(
+            plate: plate,
+            imagePath: photo.annotatedPath!,
+            variant: 'annotated',
+          );
+          annotatedPhotoId = annotatedUpload.photoId;
+          annotatedUploadPath = annotatedUpload.path;
+
+          // Validate annotated photo
+          if (!_isValidPhotoId(annotatedPhotoId) ||
+              !_isValidServerPath(annotatedUploadPath)) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fotoğraf upload hatası: Invalid annotated path'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
+
+        // If an annotated image exists, persist it as the primary reference too.
+        final effectiveOriginalPhotoId =
+            annotatedPhotoId ?? originalUpload.photoId;
+
+        uploadedPhotos.add({
+          'originalPhotoId': effectiveOriginalPhotoId,
+          'annotatedPhotoId': annotatedPhotoId,
+          'note': photo.note,
+          'damageTypes': photo.damageTypes,
+          'partId': photo.partId,
+          'partName': photo.partName,
+        });
+      }
+
       final insertedId = await _receptionApi.saveForm(
         plate: plate,
         brand: brand,
         model: model,
         selections: _damageSelections,
-        photos: _photos.map((p) => p.toMap()).toList(),
+        photos: uploadedPhotos,
         generalNotes: _generalNoteController.text.trim(),
+        deliveredBy: _deliveredByController.text.trim(),
+        receivedBy: _receivedByController.text.trim(),
+        defects: _defectsController.text.trim(),
       );
 
       if (!mounted) return;
@@ -370,6 +472,9 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                         selections: _damageSelections,
                         photos: _photos,
                         generalNotes: _generalNoteController.text.trim(),
+                        deliveredBy: _deliveredByController.text.trim(),
+                        receivedBy: _receivedByController.text.trim(),
+                        defects: _defectsController.text.trim(),
                       );
                     } catch (e) {
                       if (!context.mounted) return;
@@ -399,12 +504,73 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const SizedBox(height: 24),
+
+                  // Delivery Information
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Teslimat Bilgileri',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _deliveredByController,
+                            decoration: const InputDecoration(
+                              labelText: 'Teslim Eden (Ad Soyad)',
+                              hintText:
+                                  'Aracı teslim eden kişinin adı ve soyadı',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            onChanged: (_) => _saveDraft(),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _receivedByController,
+                            decoration: const InputDecoration(
+                              labelText: 'Teslim Alan (Ad Soyad)',
+                              hintText:
+                                  'Aracı kabul eden kişinin adı ve soyadı',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            onChanged: (_) => _saveDraft(),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _defectsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Araç Kusurları / Hasarları',
+                              hintText:
+                                  'Teslim alınan araçtaki kusurları/hasarları girin (virgülle ayrılmış)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.error_outline),
+                            ),
+                            maxLines: 3,
+                            onChanged: (_) => _saveDraft(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                   // Vehicle Info
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text(
+                            'Teslimat Bilgileri',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                           TextFormField(
                             controller: _plateController,
                             decoration: const InputDecoration(
@@ -467,7 +633,7 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                           const Divider(),
                           const SizedBox(height: 8),
                           Container(
-                            height: 320,
+                            height: 600,
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceVariant
                                   .withOpacity(0.3),
@@ -492,7 +658,10 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                                   setState(() {
                                     _activePartId = partId;
                                     _activePartName =
-                                        VehiclePartsRegistry.byId(partId)?.name ?? partId;
+                                        VehiclePartsRegistry.byId(
+                                          partId,
+                                        )?.name ??
+                                        partId;
                                   });
                                 },
                                 onSelectionsChanged: (selections) {
@@ -527,39 +696,52 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                             Wrap(
                               spacing: 6,
                               runSpacing: 6,
-                              children: (_damageSelections[_activePartId] ?? const [])
-                                  .map((action) {
-                                final color = damageActionColor(action) ?? Colors.blueGrey;
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: color.withValues(alpha: 0.25),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: color),
-                                  ),
-                                  child: Text(
-                                    damageActionLabel(action),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: color,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                              children:
+                                  (_damageSelections[_activePartId] ?? const [])
+                                      .map((action) {
+                                        final color =
+                                            damageActionColor(action) ??
+                                            Colors.blueGrey;
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: color.withValues(
+                                              alpha: 0.25,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(color: color),
+                                          ),
+                                          child: Text(
+                                            damageActionLabel(action),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: color,
+                                            ),
+                                          ),
+                                        );
+                                      })
+                                      .toList(),
                             ),
                             const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
                               child: FilledButton.icon(
-                                onPressed: (_damageSelections[_activePartId]?.isNotEmpty ?? false)
+                                onPressed:
+                                    (_damageSelections[_activePartId]
+                                            ?.isNotEmpty ??
+                                        false)
                                     ? _completeDetectionWithPhoto
                                     : null,
                                 icon: const Icon(Icons.check_circle_outline),
-                                label: const Text('TESPİTİ FOTOĞRAF İLE TAMAMLA'),
+                                label: const Text(
+                                  'TESPİTİ FOTOĞRAF İLE TAMAMLA',
+                                ),
                               ),
                             ),
                           ],
@@ -715,19 +897,6 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
 
                   const SizedBox(height: 24),
 
-                  // General Note
-                  TextFormField(
-                    controller: _generalNoteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Giriş Notları',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                    onChanged: (_) => _saveDraft(),
-                  ),
-
-                  const SizedBox(height: 32),
-
                   // Continue to Job Creation
                   FilledButton(
                     onPressed: _saveReceptionForm,
@@ -741,7 +910,7 @@ class _VehicleReceptionScreenState extends State<VehicleReceptionScreen> {
                   const SizedBox(height: 12),
 
                   FilledButton(
-                    onPressed: () => context.push('/create-job-order'),
+                    onPressed: () => context.goNamed('create-job-order'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       minimumSize: const Size(double.infinity, 56),

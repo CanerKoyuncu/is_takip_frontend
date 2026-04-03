@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 class PdfBaseService {
   PdfBaseService._();
 
+  static const String _primaryLogoAsset = 'assets/logo.png';
+
   static pw.ImageProvider? _logoImage;
   static pw.Font? _regularFont;
   static pw.Font? _boldFont;
@@ -35,37 +37,35 @@ class PdfBaseService {
     if (_logoImage != null) return;
 
     try {
-      final possiblePaths = [
-        'assets/logo.png',
-        'assets/images/logo.png',
-        'assets/images/company_logo.png',
-      ];
+      // Workspace'te mevcut olan tek logo dosyasını önce doğrudan dene.
+      final logoData = await rootBundle.load(_primaryLogoAsset);
+      _logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+      debugPrint('✓ PDF Logosu yüklendi: $_primaryLogoAsset');
+      return;
+    } catch (_) {
+      // Web fallback'e geçilecek.
+    }
 
-      for (final path in possiblePaths) {
-        try {
-          final logoData = await rootBundle.load(path);
-          _logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
-          debugPrint('✓ PDF Logosu yüklendi: $path');
-          return;
-        } catch (_) {
-          continue;
-        }
-      }
-
+    try {
       // Web Fallback
       if (kIsWeb) {
-        try {
-          final baseUrl = Uri.base.origin;
-          final response = await http.get(
-            Uri.parse('$baseUrl/assets/logo.png'),
-          );
-          if (response.statusCode == 200) {
-            _logoImage = pw.MemoryImage(response.bodyBytes);
-            debugPrint('✓ PDF Logosu Web üzerinden yüklendi.');
-            return;
+        final baseUrl = Uri.base.origin;
+        final fallbackUrls = [
+          '$baseUrl/assets/assets/logo.png',
+          '$baseUrl/assets/logo.png',
+        ];
+
+        for (final url in fallbackUrls) {
+          try {
+            final response = await http.get(Uri.parse(url));
+            if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+              _logoImage = pw.MemoryImage(response.bodyBytes);
+              debugPrint('✓ PDF Logosu Web üzerinden yüklendi: $url');
+              return;
+            }
+          } catch (_) {
+            // Diğer fallback URL'ini dene.
           }
-        } catch (e) {
-          debugPrint('Web Logo yükleme hatası: $e');
         }
       }
     } catch (e) {

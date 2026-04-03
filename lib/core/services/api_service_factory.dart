@@ -11,8 +11,8 @@ library;
 
 import '../config/api_config.dart';
 import 'api_service.dart';
-import '../../features/jobs/services/jobs_api_service.dart';
-import '../../features/jobs/services/archive_api_service.dart';
+import '../../features/jobs/services/api/jobs_api_service.dart';
+import '../../features/jobs/services/api/archive_api_service.dart';
 
 /// API servis factory sınıfı
 ///

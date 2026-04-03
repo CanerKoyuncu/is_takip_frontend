@@ -3,6 +3,7 @@
 /// İşçi mesai saatleri raporu için kullanılan modeller.
 
 import '../models/job_models.dart';
+import '../utils/server_datetime_parser.dart';
 
 /// Çalışma oturumu (başlangıç ve bitiş zamanı)
 class WorkSession {
@@ -21,8 +22,8 @@ class WorkSession {
   /// JSON'dan WorkSession oluşturur
   factory WorkSession.fromJson(Map<String, dynamic> json) {
     return WorkSession(
-      startTime: DateTime.parse(json['startTime'] as String),
-      endTime: DateTime.parse(json['endTime'] as String),
+      startTime: ServerDateTimeParser.parseRequired(json['startTime']),
+      endTime: ServerDateTimeParser.parseRequired(json['endTime']),
       durationSeconds: (json['durationSeconds'] as num).toDouble(),
       workerId: json['workerId'] as String?,
     );
@@ -71,8 +72,8 @@ class TaskDetail {
       area: json['area'] as String,
       operationType: json['operationType'] as String,
       note: json['note'] as String?,
-      startedAt: DateTime.parse(json['startedAt'] as String),
-      completedAt: DateTime.parse(json['completedAt'] as String),
+      startedAt: ServerDateTimeParser.parseRequired(json['startedAt']),
+      completedAt: ServerDateTimeParser.parseRequired(json['completedAt']),
       durationHours: (json['durationHours'] as num).toDouble(),
       durationMinutes: json['durationMinutes'] as int,
       totalDurationHours:
@@ -126,12 +127,8 @@ class VehicleWorkHours {
               ?.map((t) => TaskDetail.fromJson(t as Map<String, dynamic>))
               .toList() ??
           [],
-      firstTaskDate: json['firstTaskDate'] != null
-          ? DateTime.parse(json['firstTaskDate'] as String)
-          : null,
-      lastTaskDate: json['lastTaskDate'] != null
-          ? DateTime.parse(json['lastTaskDate'] as String)
-          : null,
+      firstTaskDate: ServerDateTimeParser.parseNullable(json['firstTaskDate']),
+      lastTaskDate: ServerDateTimeParser.parseNullable(json['lastTaskDate']),
     );
   }
 }

@@ -99,6 +99,29 @@ class ApiService {
           handler.next(options);
         },
         onError: (error, handler) async {
+          // Geçici ağ sorunlarında GET istekleri için tek seferlik otomatik retry.
+          final isRetryableNetworkError =
+              error.type == DioExceptionType.connectionTimeout ||
+              error.type == DioExceptionType.connectionError;
+          final isGet = error.requestOptions.method.toUpperCase() == 'GET';
+          final retryCount =
+              (error.requestOptions.extra['_retryCount'] as int?) ?? 0;
+
+          if (isRetryableNetworkError && isGet && retryCount < 1) {
+            try {
+              final retryOptions = error.requestOptions;
+              retryOptions.extra['_retryCount'] = retryCount + 1;
+              await Future.delayed(const Duration(milliseconds: 700));
+              final retryResponse = await _dio.fetch(retryOptions);
+              if (kDebugMode) {
+                print('✅ Retry successful after transient network error');
+              }
+              return handler.resolve(retryResponse);
+            } catch (_) {
+              // Retry başarısızsa normal hata akışına devam et.
+            }
+          }
+
           // 401 hatası alındığında token'ı yenilemeyi dene
           // Ancak user management endpoint'leri için token güncelleme yapma
           // (Başka kullanıcı oluştururken mevcut kullanıcının token'ı güncellenmemeli)
@@ -566,9 +589,9 @@ class ApiService {
           ...?headers,
         },
         // Bağlantı timeout'u (30 saniye)
-        connectTimeout: const Duration(seconds: 30),
+        connectTimeout: const Duration(seconds: 45),
         // Yanıt alma timeout'u (30 saniye)
-        receiveTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 45),
         // Tüm status kodlarını kabul et (hata yönetimi için)
         validateStatus: (status) => true,
         // CORS için credentials gönder

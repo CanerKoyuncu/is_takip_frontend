@@ -10,7 +10,9 @@ import 'package:vehicle_damage_map/vehicle_damage_map.dart'
         damageActionColor,
         damageActionLabel;
 import '../../../models/reception_models.dart';
-import '../../../services/reception_report_service.dart';
+import '../../../services/api/reception_api_service.dart';
+import '../../../services/pdf/pdf_reception_report_service.dart';
+import '../../../utils/server_datetime_parser.dart';
 
 class ReceptionDetailScreen extends StatelessWidget {
   const ReceptionDetailScreen({super.key, required this.detail});
@@ -35,8 +37,9 @@ class ReceptionDetailScreen extends StatelessWidget {
   String _formatDate(dynamic raw) {
     if (raw == null) return '-';
     try {
-      final dt = DateTime.parse(raw.toString());
-      return DateFormat('dd.MM.yyyy HH:mm', 'tr_TR').format(dt.toLocal());
+      final dt = ServerDateTimeParser.parseNullable(raw);
+      if (dt == null) return '-';
+      return DateFormat('dd.MM.yyyy HH:mm', 'tr_TR').format(dt);
     } catch (_) {
       return raw.toString();
     }
@@ -145,6 +148,14 @@ class ReceptionDetailScreen extends StatelessWidget {
 
     return rawPhotos.whereType<Map>().map((item) {
       final rawMap = Map<String, dynamic>.from(item);
+      final originalPhotoId = _readString(rawMap, const [
+        'original_photo_id',
+        'originalPhotoId',
+      ]);
+      final annotatedPhotoId = _readString(rawMap, const [
+        'annotated_photo_id',
+        'annotatedPhotoId',
+      ]);
       final originalPath =
           _readString(rawMap, const ['original_path', 'originalPath']) ?? '';
       final annotatedPath = _readString(rawMap, const [
@@ -159,6 +170,8 @@ class ReceptionDetailScreen extends StatelessWidget {
       );
 
       return {
+        'original_photo_id': originalPhotoId,
+        'annotated_photo_id': annotatedPhotoId,
         'original_path': originalPath,
         'annotated_path': annotatedPath,
         'part_id': partId,
@@ -179,11 +192,29 @@ class ReceptionDetailScreen extends StatelessWidget {
   }
 
   String _photoPath(Map<String, dynamic> photo) {
+    final annotatedPhotoId =
+        _readString(photo, const ['annotated_photo_id', 'annotatedPhotoId']) ??
+        '';
+    if (annotatedPhotoId.isNotEmpty) {
+      return ReceptionApiService.resolvePhotoById(annotatedPhotoId);
+    }
+
+    final originalPhotoId =
+        _readString(photo, const ['original_photo_id', 'originalPhotoId']) ??
+        '';
+    if (originalPhotoId.isNotEmpty) {
+      return ReceptionApiService.resolvePhotoById(originalPhotoId);
+    }
+
     final annotated =
         _readString(photo, const ['annotated_path', 'annotatedPath']) ?? '';
-    if (annotated.isNotEmpty) return annotated;
+    if (annotated.isNotEmpty) {
+      return ReceptionApiService.resolvePhotoPath(annotated);
+    }
 
-    return _readString(photo, const ['original_path', 'originalPath']) ?? '';
+    final original =
+        _readString(photo, const ['original_path', 'originalPath']) ?? '';
+    return ReceptionApiService.resolvePhotoPath(original);
   }
 
   VehiclePartSelections _pdfSelections() {
@@ -194,14 +225,24 @@ class ReceptionDetailScreen extends StatelessWidget {
     final rawPhotos = _extractPhotos();
     return rawPhotos.map((item) {
       final photo = item;
-      final originalPath = (photo['original_path'] as String?) ?? '';
-      final annotatedPath = (photo['annotated_path'] as String?)?.trim();
+      final originalPhotoId = (photo['original_photo_id'] as String?)?.trim();
+      final annotatedPhotoId = (photo['annotated_photo_id'] as String?)?.trim();
+      final originalPathRaw = (photo['original_path'] as String?) ?? '';
+      final annotatedPathRaw = (photo['annotated_path'] as String?)?.trim();
+      final originalPath =
+          (originalPhotoId != null && originalPhotoId.isNotEmpty)
+          ? ReceptionApiService.resolvePhotoById(originalPhotoId)
+          : ReceptionApiService.resolvePhotoPath(originalPathRaw);
+      final annotatedPath =
+          (annotatedPhotoId != null && annotatedPhotoId.isNotEmpty)
+          ? ReceptionApiService.resolvePhotoById(annotatedPhotoId)
+          : (annotatedPathRaw == null || annotatedPathRaw.isEmpty)
+          ? null
+          : ReceptionApiService.resolvePhotoPath(annotatedPathRaw);
 
       return ReceptionPhoto(
         originalPath: originalPath,
-        annotatedPath: (annotatedPath == null || annotatedPath.isEmpty)
-            ? null
-            : annotatedPath,
+        annotatedPath: annotatedPath,
         note: photo['note'] as String?,
         damageTypes:
             (photo['damage_types'] as List<dynamic>?)

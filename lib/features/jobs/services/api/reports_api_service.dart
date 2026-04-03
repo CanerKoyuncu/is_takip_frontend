@@ -2,7 +2,7 @@
 ///
 /// Backend'den rapor verilerini çeker.
 import '../../../../core/services/api_service.dart';
-import '../models/worker_hours_model.dart';
+import '../../models/worker_hours_model.dart';
 
 class ReportsApiService {
   ReportsApiService({required ApiService apiService})

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/api_service_factory.dart';
 import '../models/job_models.dart';
-import '../services/photo_service.dart';
+import '../services/photo/photo_service.dart';
 
 /// Widget for displaying task photos from API
 /// Uses Dio to load images with authentication headers

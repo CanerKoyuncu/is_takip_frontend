@@ -1,7 +1,7 @@
 /// Workers API Servisi
 ///
 /// Backend'den personel listesini çeker ve personel yönetimi işlemlerini yapar.
-import '../models/worker_model.dart';
+import '../../models/worker_model.dart';
 import '../../../../core/services/api_service.dart';
 
 class WorkersApiService {

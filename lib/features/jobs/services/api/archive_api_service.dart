@@ -1,4 +1,4 @@
-import '../../../core/services/api_service.dart';
+import '../../../../core/services/api_service.dart';
 
 /// API service for archive operations
 class ArchiveApiService {

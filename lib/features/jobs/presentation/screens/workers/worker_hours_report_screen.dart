@@ -9,8 +9,9 @@ import '../../../models/worker_hours_model.dart';
 import '../../../models/vehicle_area.dart';
 import '../../../models/job_models.dart';
 import '../../../utils/enum_mapper.dart';
-import '../../../services/workers_api_service.dart';
-import '../../../services/reports_api_service.dart';
+import '../../../utils/duration_formatter.dart';
+import '../../../services/api/workers_api_service.dart';
+import '../../../services/api/reports_api_service.dart';
 import '../../../../../core/services/api_service_factory.dart';
 import '../../../../../core/widgets/error_snackbar.dart';
 
@@ -180,18 +181,6 @@ class _WorkerHoursReportScreenState extends State<WorkerHoursReportScreen> {
           _endDate = picked;
         }
       });
-    }
-  }
-
-  String _formatHours(double hours) {
-    final h = hours.floor();
-    final m = ((hours - h) * 60).round();
-    if (h > 0 && m > 0) {
-      return '$h saat $m dakika';
-    } else if (h > 0) {
-      return '$h saat';
-    } else {
-      return '$m dakika';
     }
   }
 
@@ -441,7 +430,9 @@ class _WorkerHoursReportScreenState extends State<WorkerHoursReportScreen> {
                             const Divider(),
                             _SummaryRow(
                               label: 'Toplam Mesai',
-                              value: _formatHours(_report!.totalHours),
+                              value: DurationFormatter.longFromHours(
+                                _report!.totalHours,
+                              ),
                             ),
                             _SummaryRow(
                               label: 'Toplam Dakika',
@@ -500,7 +491,7 @@ class _WorkerHoursReportScreenState extends State<WorkerHoursReportScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              '${vehicleHours.taskCount} görev • ${_formatHours(vehicleHours.totalHours)}',
+                              '${vehicleHours.taskCount} görev • ${DurationFormatter.longFromHours(vehicleHours.totalHours)}',
                               style: textTheme.bodySmall,
                             ),
                             children: [
@@ -511,7 +502,7 @@ class _WorkerHoursReportScreenState extends State<WorkerHoursReportScreen> {
                                   children: [
                                     _DetailRow(
                                       label: 'Toplam Mesai',
-                                      value: _formatHours(
+                                      value: DurationFormatter.longFromHours(
                                         vehicleHours.totalHours,
                                       ),
                                     ),
@@ -670,18 +661,6 @@ class _TaskDetailCard extends StatelessWidget {
     }
   }
 
-  String _formatHours(double hours) {
-    final h = hours.floor();
-    final m = ((hours - h) * 60).round();
-    if (h > 0 && m > 0) {
-      return '$h saat $m dakika';
-    } else if (h > 0) {
-      return '$h saat';
-    } else {
-      return '$m dakika';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -797,7 +776,7 @@ class _TaskDetailCard extends StatelessWidget {
                 child: _TaskInfoItem(
                   icon: Icons.access_time,
                   label: task.hasPauses ? 'Çalışma Süresi' : 'Süre',
-                  value: _formatHours(task.durationHours),
+                  value: DurationFormatter.longFromHours(task.durationHours),
                   scheme: scheme,
                 ),
               ),
@@ -807,7 +786,9 @@ class _TaskDetailCard extends StatelessWidget {
                   child: _TaskInfoItem(
                     icon: Icons.pause_circle_outline,
                     label: 'Toplam Süre',
-                    value: _formatHours(task.totalDurationHours),
+                    value: DurationFormatter.longFromHours(
+                      task.totalDurationHours,
+                    ),
                     scheme: scheme,
                   ),
                 ),
@@ -878,7 +859,7 @@ class _TaskDetailCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            _formatHours(hours),
+                            DurationFormatter.longFromHours(hours),
                             style: textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: scheme.primary,
@@ -946,7 +927,7 @@ class _TaskDetailCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${DateFormat('HH:mm', 'tr_TR').format(session.startTime)} - ${DateFormat('HH:mm', 'tr_TR').format(session.endTime)} (${_formatHours(session.durationSeconds / 3600)})',
+                                  '${DateFormat('HH:mm', 'tr_TR').format(session.startTime)} - ${DateFormat('HH:mm', 'tr_TR').format(session.endTime)} (${DurationFormatter.longFromSeconds(session.durationSeconds)})',
                                   style: textTheme.bodySmall?.copyWith(
                                     color: scheme.onSurfaceVariant,
                                   ),

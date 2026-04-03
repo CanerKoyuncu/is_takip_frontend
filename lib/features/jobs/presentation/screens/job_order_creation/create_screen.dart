@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import 'package:is_takip/features/jobs/models/reception_models.dart';
-import 'package:is_takip/features/jobs/services/job_creation_cache_service.dart';
+import 'package:is_takip/features/jobs/services/cache/job_creation_cache_service.dart';
 import '../../../models/job_models.dart';
 import '../../../models/job_task_draft.dart';
 import '../../../providers/jobs_provider.dart';

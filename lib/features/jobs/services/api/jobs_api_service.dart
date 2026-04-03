@@ -16,13 +16,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/services/api_service.dart';
-import '../models/job_models.dart';
-import '../models/job_task_draft.dart';
-import '../models/vehicle_area.dart';
+import '../../../../core/services/api_service.dart';
+import '../../models/job_models.dart';
+import '../../models/job_task_draft.dart';
+import '../../models/vehicle_area.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart'
-    show SparePartItem, PartSupplyStatus;
-import '../utils/enum_mapper.dart';
+    show SparePartItem, PartSupplyStatus, PartSupplySource;
+import '../../utils/enum_mapper.dart';
+import '../../utils/server_datetime_parser.dart';
 
 /// İş emirleri API servis sınıfı
 ///
@@ -43,6 +44,15 @@ class JobsApiService {
         return 'geldi';
       case PartSupplyStatus.takildi:
         return 'takildi';
+    }
+  }
+
+  String _partSupplySourceToBackend(PartSupplySource source) {
+    switch (source) {
+      case PartSupplySource.sigorta:
+        return 'sigorta';
+      case PartSupplySource.kendi:
+        return 'kendi';
     }
   }
 
@@ -144,6 +154,9 @@ class JobsApiService {
     required List<JobTaskDraft> taskDrafts,
     String? generalNotes,
     List<String> requiredParts = const [],
+    String? deliveredBy,
+    String? receivedBy,
+    List<String> defects = const [],
   }) async {
     final response = await _apiService.post(
       '/jobs',
@@ -169,6 +182,9 @@ class JobsApiService {
             .toList(),
         'generalNotes': generalNotes,
         'requiredParts': requiredParts,
+        'deliveredBy': deliveredBy,
+        'receivedBy': receivedBy,
+        'defects': defects,
       },
     );
     return _jobOrderFromJson(response.data['data'] ?? response.data);
@@ -223,12 +239,28 @@ class JobsApiService {
     required String taskId,
     String? assignedWorkerId,
   }) async {
-    await _apiService.post(
-      '/jobs/$jobId/tasks/$taskId/start',
-      data: {
-        if (assignedWorkerId != null) 'assignedWorkerId': assignedWorkerId,
-      },
-    );
+    print('🚀 [JobsApiService.startTask] Starting task...');
+    print('   Job ID: $jobId');
+    print('   Task ID: $taskId');
+    print('   Assigned Worker: $assignedWorkerId');
+
+    const endpoint = '/jobs/tasks/start';
+    print('   Endpoint: $endpoint');
+
+    try {
+      await _apiService.patch(
+        endpoint,
+        data: {
+          'jobId': jobId,
+          'taskId': taskId,
+          if (assignedWorkerId != null) 'assignedWorkerId': assignedWorkerId,
+        },
+      );
+      print('✅ [JobsApiService.startTask] Task start successful');
+    } catch (e) {
+      print('❌ [JobsApiService.startTask] Error: $e');
+      rethrow;
+    }
   }
 
   Future<void> pauseTask({
@@ -236,9 +268,13 @@ class JobsApiService {
     required String taskId,
     String? note,
   }) async {
-    await _apiService.post(
-      '/jobs/$jobId/tasks/$taskId/pause',
-      data: {if (note != null && note.isNotEmpty) 'note': note},
+    await _apiService.patch(
+      '/jobs/tasks/pause',
+      data: {
+        'jobId': jobId,
+        'taskId': taskId,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
     );
   }
 
@@ -247,9 +283,13 @@ class JobsApiService {
     required String taskId,
     required String assignedWorkerId,
   }) async {
-    await _apiService.post(
-      '/jobs/$jobId/tasks/$taskId/resume',
-      data: {'assignedWorkerId': assignedWorkerId},
+    await _apiService.patch(
+      '/jobs/tasks/resume',
+      data: {
+        'jobId': jobId,
+        'taskId': taskId,
+        'assignedWorkerId': assignedWorkerId,
+      },
     );
   }
 
@@ -339,9 +379,11 @@ class JobsApiService {
     String? note,
     String? completionPhotoPath,
   }) async {
-    await _apiService.post(
-      '/jobs/$jobId/tasks/$taskId/complete',
+    await _apiService.patch(
+      '/jobs/tasks/complete',
       data: {
+        'jobId': jobId,
+        'taskId': taskId,
         // Not varsa ekle
         if (note != null) 'note': note,
         // Tamamlanma fotoğrafı varsa ekle
@@ -382,12 +424,15 @@ class JobsApiService {
     required String partId,
     String? name,
     PartSupplyStatus? status,
+    PartSupplySource? supplySource,
     String? partCode,
     String? notes,
   }) async {
     final data = <String, dynamic>{
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
       if (status != null) 'status': _partStatusToBackend(status),
+      if (supplySource != null)
+        'supplySource': _partSupplySourceToBackend(supplySource),
       if (partCode != null) 'partCode': partCode,
       if (notes != null) 'notes': notes,
     };
@@ -684,7 +729,7 @@ class JobsApiService {
               ?.map((taskJson) => _jobTaskFromJson(taskJson))
               .toList() ??
           [],
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: ServerDateTimeParser.parseRequired(json['createdAt']),
       generalNotes: json['generalNotes'] as String?,
       isVehicleAvailable: json['isVehicleAvailable'] as bool? ?? true,
       vehicleStage: json['vehicleStage'] as String?,
@@ -702,10 +747,8 @@ class JobsApiService {
   TaskWorkSession _workSessionFromJson(Map<String, dynamic> json) {
     return TaskWorkSession(
       id: json['id'] as String,
-      startTime: DateTime.parse(json['startTime'] as String),
-      endTime: json['endTime'] != null
-          ? DateTime.parse(json['endTime'] as String)
-          : null,
+      startTime: ServerDateTimeParser.parseRequired(json['startTime']),
+      endTime: ServerDateTimeParser.parseNullable(json['endTime']),
       workerId: json['workerId'] as String?,
       workerName: json['workerName'] as String?,
       durationSeconds: json['durationSeconds'] != null
@@ -730,12 +773,8 @@ class JobsApiService {
           [],
       status: EnumMapper.jobTaskStatusFromBackend(json['status'] as String),
       // Tarihleri parse et (null olabilir)
-      startedAt: json['startedAt'] != null
-          ? DateTime.parse(json['startedAt'] as String)
-          : null,
-      completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'] as String)
-          : null,
+      startedAt: ServerDateTimeParser.parseNullable(json['startedAt']),
+      completedAt: ServerDateTimeParser.parseNullable(json['completedAt']),
       assignedWorkerId: json['assignedWorkerId'] as String?,
       assignedWorkerName: json['assignedWorkerName'] as String?,
       blockingReason: json['blockingReason'] != null
@@ -782,9 +821,9 @@ class JobsApiService {
     DateTime createdAt;
     if (json['createdAt'] != null) {
       if (json['createdAt'] is String) {
-        createdAt = DateTime.parse(json['createdAt'] as String);
+        createdAt = ServerDateTimeParser.parseRequired(json['createdAt']);
       } else if (json['createdAt'] is DateTime) {
-        createdAt = json['createdAt'] as DateTime;
+        createdAt = ServerDateTimeParser.parseRequired(json['createdAt']);
       } else {
         createdAt = DateTime.now();
       }

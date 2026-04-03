@@ -29,23 +29,23 @@ import 'pdf_web_helper_stub.dart' if (dart.library.html) 'pdf_web_helper.dart';
 
 import 'package:flutter/material.dart';
 
-import '../models/job_models.dart';
-import '../models/vehicle_area.dart';
-import '../utils/vehicle_part_mapper.dart';
-import '../utils/svg_vehicle_part_loader.dart';
+import '../../models/job_models.dart';
+import '../../models/vehicle_area.dart';
+import '../../utils/vehicle_part_mapper.dart';
+import '../../utils/svg_vehicle_part_loader.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart' show DamageMapImageGenerator;
-import '../../../core/services/api_service.dart';
-import '../../../core/services/api_service_factory.dart';
-import '../services/photo_service.dart';
-import 'pdf/pdf_styles.dart';
-import 'pdf/pdf_base_service.dart';
-import 'pdf/pdf_report_metadata.dart';
-import 'pdf/pdf_builders/pdf_header_builder.dart';
-import 'pdf/pdf_builders/pdf_job_info_builder.dart';
-import 'pdf/pdf_builders/pdf_vehicle_info_builder.dart';
-import 'pdf/pdf_builders/pdf_tasks_builder.dart';
-import 'pdf/pdf_builders/pdf_notes_builder.dart';
-import 'pdf/pdf_builders/pdf_footer_builder.dart';
+import '../../../../core/services/api_service.dart';
+import '../../../../core/services/api_service_factory.dart';
+import '../photo/photo_service.dart';
+import 'pdf_styles.dart';
+import 'pdf_base_service.dart';
+import 'pdf_report_metadata.dart';
+import 'pdf_builders/pdf_header_builder.dart';
+import 'pdf_builders/pdf_job_info_builder.dart';
+import 'pdf_builders/pdf_vehicle_info_builder.dart';
+import 'pdf_builders/pdf_tasks_builder.dart';
+import 'pdf_builders/pdf_notes_builder.dart';
+import 'pdf_builders/pdf_footer_builder.dart';
 
 /// İş emri PDF servis sınıfı
 ///

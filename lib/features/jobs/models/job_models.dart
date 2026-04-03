@@ -16,6 +16,7 @@
 import 'package:flutter/material.dart';
 import 'package:vehicle_damage_map/vehicle_damage_map.dart' show SparePartItem;
 
+import '../utils/server_datetime_parser.dart';
 import 'vehicle_area.dart';
 
 /// İş emri durumu enum'ı
@@ -656,8 +657,12 @@ class JobOrder {
     this.isVehicleAvailable = true, // Arabanın üzerinde çalışılabilir mi
     this.vehicleStage, // Araç aşaması (sigorta onayı, eksper, parça bekleniyor vb.)
     List<String> requiredParts = const [],
+    this.deliveredBy, // Teslim eden kişi
+    this.receivedBy, // Teslim alan kişi
+    List<String> defects = const [],
   }) : _tasks = List<JobTask>.unmodifiable(tasks),
-       requiredParts = List<String>.unmodifiable(requiredParts);
+       requiredParts = List<String>.unmodifiable(requiredParts),
+       defects = List<String>.unmodifiable(defects);
 
   final String id;
   final VehicleInfo vehicle;
@@ -668,6 +673,9 @@ class JobOrder {
   final String?
   vehicleStage; // none, insurance_approval_waiting, expert_waiting, part_waiting
   final List<String> requiredParts;
+  final String? deliveredBy; // Teslim eden kişi adı soyadı
+  final String? receivedBy; // Teslim alan kişi adı soyadı
+  final List<String> defects; // Araç kusurları/hasarları
 
   // Private tasks listesi - immutable getter ile erişilir
   final List<JobTask> _tasks;
@@ -744,6 +752,9 @@ class JobOrder {
     bool? isVehicleAvailable,
     String? vehicleStage,
     List<String>? requiredParts,
+    String? deliveredBy,
+    String? receivedBy,
+    List<String>? defects,
   }) {
     return JobOrder(
       id: id,
@@ -754,6 +765,9 @@ class JobOrder {
       isVehicleAvailable: isVehicleAvailable ?? this.isVehicleAvailable,
       vehicleStage: vehicleStage ?? this.vehicleStage,
       requiredParts: requiredParts ?? this.requiredParts,
+      deliveredBy: deliveredBy ?? this.deliveredBy,
+      receivedBy: receivedBy ?? this.receivedBy,
+      defects: defects ?? this.defects,
     );
   }
 }
@@ -837,8 +851,8 @@ class JobNote {
       jobId: json['jobId'] as String,
       taskId: json['taskId'] as String?,
       content: json['content'] as String? ?? '',
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: ServerDateTimeParser.parseRequired(json['createdAt']),
+      updatedAt: ServerDateTimeParser.parseRequired(json['updatedAt']),
     );
   }
 
